@@ -14,6 +14,7 @@ from nonebot.plugin import PluginMetadata
 
 from .core import SuwayomiCore
 from .handlers import set_core
+from .menu import format_help, metadata_extra
 from .settings import PluginConfig, load_runtime_config
 from .store import JsonKvStore
 from .web_routes import register_web_routes
@@ -24,15 +25,12 @@ __plugin_meta__ = PluginMetadata(
         "基于 Suwayomi-Server 的漫画搜索、阅读、下载与订阅更新推送插件，"
         "支持卡片渲染与 Web 管理面板"
     ),
-    usage=(
-        "发送「漫画 帮助」查看用法\n"
-        "配置 SUWAYOMI_SERVER_URL 指向你的 Suwayomi-Server\n"
-        "可选安装 nonebot-plugin-htmlrender 启用卡片渲染"
-    ),
+    usage=format_help(),
     type="application",
     homepage="https://github.com/LoCCai/nonebot_plugin_suwayomi_server",
     config=PluginConfig,
     supported_adapters={"~onebot.v11"},
+    extra=metadata_extra(),
 )
 
 plugin_config = get_plugin_config(PluginConfig)

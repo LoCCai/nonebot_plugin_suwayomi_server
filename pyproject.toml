@@ -1,6 +1,6 @@
 [project]
 name = "nonebot_plugin_suwayomi_server"
-version = "0.8.0"
+version = "0.8.1"
 description = "📖 Suwayomi 漫画助手 — 基于 Suwayomi-Server 的 NoneBot2 漫画搜索、阅读、下载与订阅推送插件"
 readme = "README.md"
 requires-python = ">=3.10"

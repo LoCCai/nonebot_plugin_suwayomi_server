@@ -90,7 +90,7 @@ async def dispatch(core: SuwayomiCore, ctx: MsgContext, args_text: str) -> None:
     elif sub == "章节":
         await core.list_chapters(ctx, rest)
     elif sub == "阅读":
-        # 漫画名取第一个词，其余整体作为章节号（ID:123 / 第5话 / 38.5）
+        # 最后一词是章节号（ID:123 / 第5话 / 38.5），前面是漫画名。
         if not rest_tokens:
             await core.read_chapter(ctx, "", "")
             return

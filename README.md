@@ -11,7 +11,7 @@
     <img src="https://img.shields.io/badge/NoneBot2-%3E%3D2.3-00BCD4?style=flat-square" alt="NoneBot2 >= 2.3">
     <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+">
     <img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="License AGPL-3.0">
-    <img src="https://img.shields.io/badge/version-0.8.0-8A2BE2?style=flat-square" alt="Version 0.8.0">
+    <img src="https://img.shields.io/badge/version-0.8.1-8A2BE2?style=flat-square" alt="Version 0.8.1">
   </p>
 </p>
 
@@ -202,10 +202,14 @@ data/suwayomi/
   消息收发基于 **OneBot v11**（NapCat / go-cqhttp / LLOneBot）。其他适配器
   下文本类命令可用，图片/文件推送暂不支持。
 - **Agent 工具**：AstrBot 的 LLM FunctionTool 注册在 NoneBot2 中无对应
-  设施，AI 漫画工具（`suwayomi_search_manga` 等）未移植。
+  设施，AI 漫画工具（`suwayomi_search_manga` 等）未移植。提供完整的
+  PluginMetadata 菜单、结构化命令与自然语言意图，支持七七现有 LLM
+  发现功能后投递原生 `/漫画` 指令；无需另建一套漫画工具接口。
 - **配置体系**：`_conf_schema.json` → `.env`（`SUWAYOMI_*`）+ Web 面板
   运行时配置（`config.json`）。
 - **WebUI**：AstrBot WebUI 内嵌面板 → 独立 FastAPI 面板（`/suwayomi/`）。
+- **菜单**：文字帮助、PicMenu、QWeb 功能目录和 LLM 发现共用 `menu.py`；
+  沿用宿主的菜单主题和分类，管理指令明确标注权限与影响范围。
 - **卡片渲染**：AstrBot 系统 T2I → `nonebot-plugin-htmlrender` 或自建 T2I。
 
 ---

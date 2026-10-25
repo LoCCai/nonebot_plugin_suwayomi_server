@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-10-25
+
+### Added
+
+- One command catalog for text help, PicMenu, QWeb metadata and native LLM discovery.
+- Fourteen features with typed commands, intent hints and explicit subscription/admin semantics.
+
+### Verified
+
+- Qiqi PicMenu and QWeb schema projection, generated native LLM tool discovery and actual event simulator dispatch with a mocked gateway.
+- Command aliases, original sender/group identity, image output, forward messages, file upload and failed gateway outcomes; no real QQ test messages sent.
+- 484 unit tests passed; 46 opt-in live cases skipped.
+
 ## [0.8.0] - 2026-10-25
 
 ### Changed
