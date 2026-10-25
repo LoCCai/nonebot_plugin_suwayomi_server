@@ -3,9 +3,9 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from suwayomi.client import SuwayomiError
-from suwayomi.models import Chapter, Manga
-from suwayomi.updater import check_updates
+from plugin_pkg.suwayomi.client import SuwayomiError
+from plugin_pkg.suwayomi.models import Chapter, Manga
+from plugin_pkg.suwayomi.updater import check_updates
 
 
 class FakePlugin:
@@ -51,13 +51,12 @@ class CountingClient:
 
 
 def _context():
-    ctx = MagicMock()
-    ctx.send_message = AsyncMock()
-    return ctx
+    """send_fn 替身：AsyncMock 自带 await 计数。"""
+    return AsyncMock()
 
 
 def _make_sub_mgr(plugin):
-    from utils.subscription import SubscriptionManager
+    from plugin_pkg.utils.subscription import SubscriptionManager
     return SubscriptionManager(plugin)
 
 
@@ -112,7 +111,7 @@ async def test_check_updates_processes_parallel():
     assert client.max_active >= 2
     assert "8 部漫画更新" in summary
     # messages are merged per subscriber session: all 8 mangas share umo "u1"
-    assert ctx.send_message.await_count == 1
+    assert ctx.await_count == 1
 
 
 @pytest.mark.asyncio
@@ -230,16 +229,16 @@ async def test_check_updates_sends_card_when_render_fn_succeeds():
     async def render_fn(umo, items, heading):
         return "/tmp/update-card.jpg"
 
-    with patch("suwayomi.updater.Comp") as mock_comp:
-        mock_comp.Image.fromFileSystem.return_value = MagicMock()
+    with patch("plugin_pkg.suwayomi.updater.image_file_msg") as mock_img_msg:
+        mock_img_msg.side_effect = lambda path: [f"IMG:{path}"]
         await check_updates(
             client, sub_mgr, ctx, _config(),
             plugin.get_kv_data, plugin.put_kv_data, asyncio.Lock(),
             AsyncMock(), AsyncMock(),
             render_update_card_fn=render_fn,
         )
-    mock_comp.Image.fromFileSystem.assert_called_once_with("/tmp/update-card.jpg")
-    assert ctx.send_message.await_count == 1
+    mock_img_msg.assert_called_once_with("/tmp/update-card.jpg")
+    assert ctx.await_count == 1
 
 
 @pytest.mark.asyncio
@@ -255,16 +254,16 @@ async def test_check_updates_falls_back_to_text_when_render_fails():
     async def render_fn(umo, items, heading):
         return None
 
-    with patch("suwayomi.updater.Comp") as mock_comp:
-        mock_comp.Image.fromFileSystem.return_value = MagicMock()
+    with patch("plugin_pkg.suwayomi.updater.image_file_msg") as mock_img_msg:
+        mock_img_msg.side_effect = lambda path: [f"IMG:{path}"]
         await check_updates(
             client, sub_mgr, ctx, _config(),
             plugin.get_kv_data, plugin.put_kv_data, asyncio.Lock(),
             AsyncMock(), AsyncMock(),
             render_update_card_fn=render_fn,
         )
-    mock_comp.Image.fromFileSystem.assert_not_called()
-    assert ctx.send_message.await_count == 1  # 文本消息回退
+    mock_img_msg.assert_not_called()
+    assert ctx.await_count == 1  # 文本消息回退
 
 
 @pytest.mark.asyncio
@@ -283,8 +282,8 @@ async def test_check_updates_build_update_items_include_thumbnail():
         seen["heading"] = heading
         return "/tmp/c.jpg"
 
-    with patch("suwayomi.updater.Comp") as mock_comp:
-        mock_comp.Image.fromFileSystem.return_value = MagicMock()
+    with patch("plugin_pkg.suwayomi.updater.image_file_msg") as mock_img_msg:
+        mock_img_msg.side_effect = lambda path: [f"IMG:{path}"]
         await check_updates(
             client, sub_mgr, ctx, _config(),
             plugin.get_kv_data, plugin.put_kv_data, asyncio.Lock(),
@@ -316,8 +315,8 @@ async def test_check_updates_lazy_fetch_manga_when_cache_fresh():
         seen["items"] = items
         return "/tmp/c.jpg"
 
-    with patch("suwayomi.updater.Comp") as mock_comp:
-        mock_comp.Image.fromFileSystem.return_value = MagicMock()
+    with patch("plugin_pkg.suwayomi.updater.image_file_msg") as mock_img_msg:
+        mock_img_msg.side_effect = lambda path: [f"IMG:{path}"]
         await check_updates(
             client, sub_mgr, ctx, {"chapter_cache_hours": 6},
             plugin.get_kv_data, plugin.put_kv_data, asyncio.Lock(),
@@ -342,16 +341,16 @@ async def test_check_updates_render_fn_raises_still_sends_text():
     async def render_fn(umo, items, heading):
         raise RuntimeError("renderer exploded")
 
-    with patch("suwayomi.updater.Comp") as mock_comp:
-        mock_comp.Image.fromFileSystem.return_value = MagicMock()
+    with patch("plugin_pkg.suwayomi.updater.image_file_msg") as mock_img_msg:
+        mock_img_msg.side_effect = lambda path: [f"IMG:{path}"]
         await check_updates(
             client, sub_mgr, ctx, _config(),
             plugin.get_kv_data, plugin.put_kv_data, asyncio.Lock(),
             AsyncMock(), AsyncMock(),
             render_update_card_fn=render_fn,
         )
-    mock_comp.Image.fromFileSystem.assert_not_called()
-    assert ctx.send_message.await_count == 1  # 文本兜底仍发送
+    mock_img_msg.assert_not_called()
+    assert ctx.await_count == 1  # 文本兜底仍发送
 
 
 @pytest.mark.asyncio
@@ -369,8 +368,8 @@ async def test_check_updates_caps_card_chapters():
         seen["items"] = items
         return "/tmp/c.jpg"
 
-    with patch("suwayomi.updater.Comp") as mock_comp:
-        mock_comp.Image.fromFileSystem.return_value = MagicMock()
+    with patch("plugin_pkg.suwayomi.updater.image_file_msg") as mock_img_msg:
+        mock_img_msg.side_effect = lambda path: [f"IMG:{path}"]
         await check_updates(
             client, sub_mgr, ctx, _config(),
             plugin.get_kv_data, plugin.put_kv_data, asyncio.Lock(),
@@ -380,17 +379,6 @@ async def test_check_updates_caps_card_chapters():
     chapters = seen["items"][0]["chapters"]
     assert len(chapters) == 25  # 24 上限 + "+N 话"
     assert chapters[-1] == "+6 话"
-
-
-class _CapturingChain:
-    """替身 MessageChain：捕获文本路径发送的内容。"""
-
-    def __init__(self, chain=None):
-        self.text = ""
-
-    def message(self, text):
-        self.text = text
-        return self
 
 
 @pytest.mark.asyncio
@@ -404,18 +392,17 @@ async def test_check_updates_text_path_truncates_chapters():
     await sub_mgr.update_latest_chapter(1, 1)
     ctx = _context()
 
-    with patch("suwayomi.updater.MessageChain", _CapturingChain):
-        await check_updates(
-            client, sub_mgr, ctx, _config(),
-            plugin.get_kv_data, plugin.put_kv_data, asyncio.Lock(),
-            AsyncMock(), AsyncMock(),
-            render_update_card_fn=None,
-        )
-    sent = ctx.send_message.await_args_list[0].args[1]
-    assert "+6 话" in sent.text
+    await check_updates(
+        client, sub_mgr, ctx, _config(),
+        plugin.get_kv_data, plugin.put_kv_data, asyncio.Lock(),
+        AsyncMock(), AsyncMock(),
+        render_update_card_fn=None,
+    )
+    sent = ctx.await_args_list[0].args[1][0].text
+    assert "+6 话" in sent
     # 新增 2..31 共 30 话：展示 2..25，第 26-31 话折叠进「+6 话」
-    assert "第25话" in sent.text
-    assert "第26话" not in sent.text and "第31话" not in sent.text
+    assert "第25话" in sent
+    assert "第26话" not in sent and "第31话" not in sent
 
 
 @pytest.mark.asyncio
@@ -430,13 +417,12 @@ async def test_update_notification_sanitizes_dirty_title():
     await sub_mgr.update_latest_chapter(1, 1)
     ctx = _context()
 
-    with patch("suwayomi.updater.MessageChain", _CapturingChain):
-        await check_updates(
-            client, sub_mgr, ctx, _config(),
-            plugin.get_kv_data, plugin.put_kv_data, asyncio.Lock(),
-            AsyncMock(), AsyncMock(),
-            render_update_card_fn=None,
-        )
-    sent = ctx.send_message.await_args_list[0].args[1]
-    assert dirty not in sent.text
-    assert "正常标题 📢" in sent.text  # 换行被折叠为空格，不再伪造新行
+    await check_updates(
+        client, sub_mgr, ctx, _config(),
+        plugin.get_kv_data, plugin.put_kv_data, asyncio.Lock(),
+        AsyncMock(), AsyncMock(),
+        render_update_card_fn=None,
+    )
+    sent = ctx.await_args_list[0].args[1][0].text
+    assert dirty not in sent
+    assert "正常标题 📢" in sent  # 换行被折叠为空格，不再伪造新行

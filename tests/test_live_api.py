@@ -3,7 +3,7 @@
 Usage:
     uv run pytest tests/test_live_api.py -v -s
 
-Set SUWAYOMI_URL env var or it defaults to http://100.87.49.15:4567
+Set SUWAYOMI_URL and SUWAYOMI_LIVE_TESTS=1 explicitly.
 Set SUWAYOMI_AUTH_MODE / SUWAYOMI_USERNAME / SUWAYOMI_PASSWORD for auth.
 """
 import os
@@ -12,28 +12,24 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
-from suwayomi.client import SuwayomiClient, SuwayomiError
-from suwayomi.models import Chapter, Manga, SearchResult, Source
-from suwayomi.ai_service import (
-    get_chapters_for_agent,
-    search_manga_for_agent,
-    select_search_sources,
-)
-from suwayomi.bangumi import (
+from plugin_pkg.suwayomi.client import SuwayomiClient, SuwayomiError
+from plugin_pkg.suwayomi.models import Chapter, Manga, SearchResult, Source
+from plugin_pkg.suwayomi.service import select_search_sources
+from plugin_pkg.suwayomi.bangumi import (
     OFFICIAL_API_BASE,
     build_probes,
     confident_aliases,
     resolve_aliases,
 )
-from suwayomi.ranking import (
+from plugin_pkg.suwayomi.ranking import (
     STRONG_MATCH_THRESHOLD,
     looks_truncated,
     normalize_for_rank,
     score_title,
 )
-from suwayomi.service import refresh_truncated_titles
+from plugin_pkg.suwayomi.service import refresh_truncated_titles
 
-SERVER_URL = os.environ.get("SUWAYOMI_URL", "http://100.87.49.15:4567")
+SERVER_URL = os.environ.get("SUWAYOMI_URL", "")
 AUTH_MODE = os.environ.get("SUWAYOMI_AUTH_MODE", "none")
 AUTH_USER = os.environ.get("SUWAYOMI_USERNAME", "")
 AUTH_PASS = os.environ.get("SUWAYOMI_PASSWORD", "")
@@ -41,7 +37,7 @@ AUTH_PASS = os.environ.get("SUWAYOMI_PASSWORD", "")
 from tests.helpers import server_reachable_sync  # noqa: E402
 
 pytestmark = pytest.mark.skipif(
-    not server_reachable_sync(SERVER_URL),
+    not SERVER_URL or os.environ.get("SUWAYOMI_LIVE_TESTS") != "1" or not server_reachable_sync(SERVER_URL),
     reason="Suwayomi-Server 不可达，跳过集成测试（可用 SUWAYOMI_URL 指定地址）",
 )
 
@@ -238,7 +234,7 @@ async def test_download_and_pack_chapter(client):
     import shutil
 
     from plugin_pkg.utils.downloader import fetch_pages_local
-    from utils.pack import pack_images
+    from plugin_pkg.utils.pack import pack_images
 
     sources = await client.get_sources()
     zh_sources = [s for s in sources if s.lang == "zh" and s.id != "0"]
@@ -314,40 +310,8 @@ async def test_search_invalid_source(client):
 # ── AI service ─────────────────────────────────────────────────
 
 
-class _FakeKV:
-    """In-memory KV store for ai_service integration tests."""
-
-    def __init__(self):
-        self._store: dict = {}
-
-    async def get(self, key, default=None):
-        return self._store.get(key, default)
-
-    async def put(self, key, value):
-        self._store[key] = value
-
-    async def get_kv_data(self, key, default=None):
-        return self._store.get(key, default)
-
-    async def put_kv_data(self, key, value):
-        self._store[key] = value
 
 
-async def _search_zh_for_agent(client, query="海贼"):
-    """Search zh sources with retry; skip the test when the source is throttled.
-
-    Manga sources rate-limit consecutive fetches (e.g. 拷贝漫画 returns
-    "Request was throttled. Expected available in X seconds"), so a burst of
-    live tests can exhaust the quota. Retry briefly, then skip instead of
-    failing the whole run.
-    """
-    config = {"ai_max_sources": 1, "ai_results_per_source": 5}
-    for attempt in range(2):
-        search = await search_manga_for_agent(client, config, query, source_hint="zh")
-        if search["success"]:
-            return search
-        await asyncio.sleep(3)
-    pytest.skip("中文源搜索被限流，跳过")
 
 
 @pytest.mark.asyncio
@@ -389,155 +353,18 @@ async def test_select_search_sources_deduplicates_variants(client):
     print(f"\n  {len(selected)} sources, {len(seen_first)} unique extensions")
 
 
-@pytest.mark.asyncio
-async def test_ai_search_manga_returns_stable_ids(client):
-    """search_manga_for_agent returns stable manga_id and metadata."""
-    kv = _FakeKV()
-    config = {"ai_max_sources": 3, "ai_results_per_source": 5}
-    result = await search_manga_for_agent(client, config, "海贼", source_hint="zh")
-    if not result["success"]:
-        await asyncio.sleep(3)
-        result = await search_manga_for_agent(client, config, "海贼", source_hint="zh")
-    if not result["success"]:
-        pytest.skip("中文源搜索被限流，跳过")
-    assert result["result_count"] > 0
-    # Each result must have stable manga_id
-    for manga in result["results"]:
-        assert "manga_id" in manga
-        assert isinstance(manga["manga_id"], int)
-        assert manga["manga_id"] > 0
-        assert "title" in manga
-        assert manga["title"]
-    # Sources metadata present
-    assert result["searched_source_count"] > 0
-    assert result["available_source_count"] > 0
-    assert len(result["available_sources"]) > 0
-    print(f"\n  ai_search: {result['result_count']} results across {result['searched_source_count']} sources")
 
 
-@pytest.mark.asyncio
-async def test_ai_search_manga_empty_query(client):
-    """search_manga_for_agent handles empty query gracefully."""
-    result = await search_manga_for_agent(client, {}, "", source_hint="zh")
-    assert result["success"] is False
-    assert "不能为空" in result["error"]
 
 
-@pytest.mark.asyncio
-async def test_ai_get_chapters_latest(client):
-    """get_chapters_for_agent 'latest' returns the newest chapter by source_order."""
-    kv = _FakeKV()
-    config = {"chapter_cache_hours": 0}
-    # First search to find a manga with chapters
-    search = await search_manga_for_agent(client, {"ai_max_sources": 1, "ai_results_per_source": 5}, "海贼", source_hint="zh")
-    assert search["success"] is True
-    manga_id = search["results"][0]["manga_id"]
-
-    result = await get_chapters_for_agent(
-        client, kv.get, kv.put, config, manga_id, selector="latest", refresh=True
-    )
-    assert result["success"] is True
-    assert result["selected_chapter"] is not None
-    sel = result["selected_chapter"]
-    assert "chapter_id" in sel
-    assert isinstance(sel["chapter_id"], int)
-    assert sel["chapter_id"] > 0
-    # Latest should return exactly 1 chapter
-    assert len(result["chapters"]) == 1
-    print(f"\n  latest: ch #{sel['chapter_number']} (id={sel['chapter_id']}) so={sel['source_order']}")
 
 
-@pytest.mark.asyncio
-async def test_ai_get_chapters_list(client):
-    """get_chapters_for_agent 'list' returns newest chapters first."""
-    kv = _FakeKV()
-    config = {"chapter_cache_hours": 0}
-    search = await _search_zh_for_agent(client)
-
-    # Instance data may make the first result single-chapter (e.g. a source that
-    # only fetched one chapter), so scan candidates for a multi-chapter manga.
-    # Source throttling may also fail individual fetch_chapters calls — treat as
-    # a skipped candidate rather than a plugin failure.
-    result = None
-    for cand in search["results"]:
-        try:
-            candidate = await get_chapters_for_agent(
-                client, kv.get, kv.put, config, cand["manga_id"], selector="list", limit=10, refresh=True
-            )
-        except Exception:
-            continue
-        if candidate.get("success") and len(candidate["chapters"]) > 1:
-            result = candidate
-            break
-    if result is None:
-        pytest.skip("实例上未找到多章节漫画（或源限流），无法验证 list 排序")
-    assert result["success"] is True
-    assert len(result["chapters"]) > 1, "list should return multiple chapters"
-    # Newest chapters should come first (highest source_order = first in list)
-    chapters = result["chapters"]
-    for i in range(len(chapters) - 1):
-        assert chapters[i]["source_order"] >= chapters[i + 1]["source_order"], \
-            f"章节 {i} (so={chapters[i]['source_order']}) 应新于或等于章节 {i+1} (so={chapters[i+1]['source_order']})"
-    assert result["selected_chapter"] is None
-    print(f"\n  list: {len(chapters)} chapters, newest so={chapters[0]['source_order']}")
 
 
-@pytest.mark.asyncio
-async def test_ai_get_chapters_by_id(client):
-    """get_chapters_for_agent selects a specific chapter by ID:xxx syntax."""
-    kv = _FakeKV()
-    config = {"chapter_cache_hours": 0}
-    search = await _search_zh_for_agent(client)
-    manga_id = search["results"][0]["manga_id"]
-
-    # First get the list to find a valid chapter number
-    list_result = await get_chapters_for_agent(
-        client, kv.get, kv.put, config, manga_id, selector="list", limit=20, refresh=True
-    )
-    assert len(list_result["chapters"]) > 0
-    target_ch = list_result["chapters"][0]
-    number = target_ch["chapter_number"]
-
-    result = await get_chapters_for_agent(
-        client, kv.get, kv.put, config, manga_id, selector=str(number), refresh=True
-    )
-    assert result["success"] is True
-    assert result["selected_chapter"] is not None
-    assert result["selected_chapter"]["chapter_id"] == target_ch["chapter_id"]
-    assert result["selected_chapter"]["chapter_number"] == number
-    print(f"\n  by_number: ch #{number} (id={target_ch['chapter_id']})")
 
 
-@pytest.mark.asyncio
-async def test_ai_get_chapters_latest(client):
-    """get_chapters_for_agent selects latest chapter by source_order."""
-    kv = _FakeKV()
-    config = {"chapter_cache_hours": 0}
-    search = await _search_zh_for_agent(client)
-    manga_id = search["results"][0]["manga_id"]
-
-    list_result = await get_chapters_for_agent(
-        client, kv.get, kv.put, config, manga_id, selector="list", limit=20, refresh=True
-    )
-    assert len(list_result["chapters"]) > 0
-    target_ch = list_result["chapters"][0]
-
-    result = await get_chapters_for_agent(
-        client, kv.get, kv.put, config, manga_id, selector=f"id:{target_ch['chapter_id']}", refresh=True
-    )
-    assert result["success"] is True
-    assert result["selected_chapter"] is not None
-    assert result["selected_chapter"]["chapter_id"] == target_ch["chapter_id"]
-    print(f"\n  by_id: ch #{target_ch['chapter_number']} (id={target_ch['chapter_id']})")
 
 
-@pytest.mark.asyncio
-async def test_ai_get_chapters_nonexistent(client):
-    """get_chapters_for_agent raises on nonexistent manga."""
-    kv = _FakeKV()
-    config = {"chapter_cache_hours": 0}
-    with pytest.raises(SuwayomiError):
-        await get_chapters_for_agent(client, kv.get, kv.put, config, 999999999, selector="latest")
 
 
 # ── Real update scan (check_updates against live server) ─────────
@@ -551,17 +378,18 @@ async def test_check_updates_detects_new_chapters_live(client):
     Covers the background update loop path that mocked tests cannot.
     """
     import asyncio
-    from unittest.mock import AsyncMock, MagicMock
+    from unittest.mock import AsyncMock
+    from tests.test_updater import FakePlugin
 
-    from suwayomi.updater import check_updates
-    from utils.subscription import SubscriptionManager
+    from plugin_pkg.suwayomi.updater import check_updates
+    from plugin_pkg.utils.subscription import SubscriptionManager
 
     sources = await client.get_sources()
     zh_sources = [s for s in sources if s.lang == "zh" and s.id != "0"]
     search = await client.search_manga(zh_sources[0].id, "海贼")
     assert search.mangas
 
-    kv = _FakeKV()
+    kv = FakePlugin()
     sub_mgr = SubscriptionManager(kv)
     for manga in search.mangas[:3]:
         try:
@@ -573,17 +401,16 @@ async def test_check_updates_detects_new_chapters_live(client):
 
         # fresh subscription: watermark 0 -> every chapter is "new"
         await sub_mgr.subscribe(manga.id, manga.title, manga.source_id, "e2e:check:1")
-        ctx = MagicMock()
-        ctx.send_message = AsyncMock()
+        send = AsyncMock()
         summary = await check_updates(
-            client, sub_mgr, ctx, {"chapter_cache_hours": -1},
-            kv.get, kv.put, asyncio.Lock(),
+            client, sub_mgr, send, {"chapter_cache_hours": -1},
+            kv.get_kv_data, kv.put_kv_data, asyncio.Lock(),
             AsyncMock(), AsyncMock(), force=False,
         )
         if "发现" not in summary:
             continue  # scan errored (e.g. throttled) — try next candidate
 
-        assert ctx.send_message.await_count >= 1, "new chapters must be notified"
+        assert send.await_count >= 1, "new chapters must be notified"
         stored = kv._store["suwayomi_subscriptions"][str(manga.id)]
         assert stored["latest_chapter_id"] > 0, "watermark must be raised"
         assert kv._store.get("suwayomi_last_update_check", 0) > 0
@@ -617,26 +444,6 @@ async def _search_zh_candidates(client, query="海贼", attempts=2):
     pytest.skip(f"中文源搜索被限流或无结果，跳过（{last_error}）")
 
 
-@pytest.mark.asyncio
-async def test_ai_search_results_sorted_by_relevance_live(client):
-    """AI 搜索路径（与 /漫画 搜索 共用打分器）按相关度稳定降序。"""
-    import asyncio
-
-    config = {"ai_max_sources": 3, "ai_results_per_source": 10}
-    result = None
-    for _ in range(2):
-        result = await search_manga_for_agent(client, config, "海贼")
-        if result["success"]:
-            break
-        await asyncio.sleep(3)
-    if not result or not result["success"] or not result["results"]:
-        pytest.skip("中文源搜索被限流，跳过")
-
-    titles = [item["title"] for item in result["results"]]
-    scores = [score_title("海贼", t) for t in titles]
-    assert scores == sorted(scores, reverse=True), \
-        f"结果未按相关度降序: {list(zip(titles, scores))}"
-    print(f"\n  AI 搜索排序: {len(titles)} 条, top={titles[0]!r} score={scores[0]:.0f}")
 
 
 @pytest.mark.asyncio

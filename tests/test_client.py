@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from suwayomi.client import SuwayomiClient, SuwayomiError
+from plugin_pkg.suwayomi.client import SuwayomiClient, SuwayomiError
 
 
 @pytest.fixture
@@ -178,7 +178,7 @@ async def test_get_sources_cached_within_ttl(client):
 @pytest.mark.asyncio
 async def test_get_sources_refetches_after_ttl(client, monkeypatch):
     clock = {"now": 1000.0}
-    monkeypatch.setattr("suwayomi.client.time.time", lambda: clock["now"])
+    monkeypatch.setattr("plugin_pkg.suwayomi.client.time.time", lambda: clock["now"])
     client._post_graphql = AsyncMock(return_value=(200, {"data": {"sources": {"nodes": [_SOURCE_NODE]}}}))
     await client.get_sources()
     clock["now"] += 61

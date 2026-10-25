@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suwayomi 漫画助手</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>Suwayomi 漫画助手</h1>
+      <form id="access-form">
+        <input id="access-token" type="password" autocomplete="off" placeholder="管理令牌" aria-label="管理令牌">
+        <button type="submit" class="btn">连接管理面板</button>
+      </form>
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="dashboard">仪表盘</button>
+        <button class="tab-btn" data-tab="subscriptions">订阅管理</button>
+        <button class="tab-btn" data-tab="settings">设置</button>
+      </nav>
+    </header>
+
+    <!-- Tab 1: Dashboard -->
+    <section id="tab-dashboard" class="tab-content active">
+      <div class="status-cards" id="status-cards">
+        <div class="card" id="card-connected">
+          <div class="card-label">连接状态</div>
+          <div class="card-value" id="val-connected">--</div>
+        </div>
+        <div class="card">
+          <div class="card-label">漫画源</div>
+          <div class="card-value" id="val-sources">--</div>
+        </div>
+        <div class="card">
+          <div class="card-label">书库漫画</div>
+          <div class="card-value" id="val-library">--</div>
+        </div>
+        <div class="card">
+          <div class="card-label">订阅</div>
+          <div class="card-value" id="val-subs">--</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2>订阅总览</h2>
+          <button class="btn btn-primary" id="btn-check-update">检查更新</button>
+        </div>
+        <div id="update-result" class="update-result hidden"></div>
+        <table class="table" id="overview-table">
+          <thead>
+            <tr>
+              <th>漫画名</th>
+              <th>源</th>
+              <th>最新章节 ID</th>
+              <th>订阅人数</th>
+              <th>推送开启</th>
+            </tr>
+          </thead>
+          <tbody id="overview-tbody"></tbody>
+        </table>
+        <div class="empty-state hidden" id="overview-empty">暂无订阅</div>
+      </div>
+    </section>
+
+    <!-- Tab 2: Subscriptions -->
+    <section id="tab-subscriptions" class="tab-content">
+      <div class="section">
+        <div class="filters">
+          <div class="filter-row">
+            <div class="filter-field">
+              <label>漫画 ID</label>
+              <input type="text" class="input" id="filter-id" placeholder="ID">
+            </div>
+            <div class="filter-field">
+              <label>漫画名</label>
+              <input type="text" class="input" id="filter-title" placeholder="模糊匹配">
+            </div>
+            <div class="filter-field">
+              <label>源</label>
+              <input type="text" class="input" id="filter-source" placeholder="源名称">
+            </div>
+            <div class="filter-field">
+              <label>订阅者</label>
+              <input type="text" class="input" id="filter-umo" placeholder="UMO 关键词">
+            </div>
+            <div class="filter-field">
+              <label>推送状态</label>
+              <select class="input" id="filter-push">
+                <option value="">全部</option>
+                <option value="on">已开启</option>
+                <option value="off">未开启</option>
+              </select>
+            </div>
+            <div class="filter-field filter-actions">
+              <button class="btn btn-sm" id="btn-clear-filters" type="button">清除筛选</button>
+              <span class="filter-count" id="filter-count"></span>
+            </div>
+          </div>
+        </div>
+        <table class="table" id="subs-table">
+          <thead>
+            <tr>
+              <th>漫画 ID</th>
+              <th>漫画名</th>
+              <th>源</th>
+              <th>订阅者</th>
+              <th>推送状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="subs-tbody"></tbody>
+        </table>
+        <div class="empty-state hidden" id="subs-empty">暂无订阅数据</div>
+      </div>
+    </section>
+
+    <!-- Tab 3: Settings -->
+    <section id="tab-settings" class="tab-content">
+      <form id="config-form" class="config-form">
+        <fieldset>
+          <legend>服务器连接</legend>
+          <div class="form-group">
+            <label for="cfg-server_url">Suwayomi-Server 地址</label>
+            <input type="text" id="cfg-server_url" name="server_url" placeholder="http://localhost:4567">
+          </div>
+          <div class="form-group">
+            <label for="cfg-auth_mode">认证模式</label>
+            <select id="cfg-auth_mode" name="auth_mode">
+              <option value="none">无认证</option>
+              <option value="basic">Basic 认证</option>
+              <option value="jwt">JWT 认证</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cfg-username">用户名</label>
+            <input type="text" id="cfg-username" name="username">
+          </div>
+          <div class="form-group">
+            <label for="cfg-password">密码</label>
+            <input type="password" id="cfg-password" name="password">
+          </div>
+        </fieldset>
+
+        <fieldset class="fieldset-emphasis">
+          <legend>卡片渲染</legend>
+          <div class="form-group">
+            <label for="cfg-result_cards_enabled">💡指令结果卡片渲染</label>
+            <select id="cfg-result_cards_enabled" name="result_cards_enabled">
+              <option value="true">开启（渲染为精美卡片）</option>
+              <option value="false">关闭（纯文本，默认）</option>
+            </select>
+            <p class="form-hint">搜索 / 订阅 / 更新通知 / 章节列表等指令结果将使用 AstrBot T2I 服务渲染为带封面的卡片。默认关闭，开启后渲染失败或超时自动回退纯文本。</p>
+          </div>
+          <div class="form-group">
+            <label for="cfg-card_render_timeout_sec">卡片渲染超时（秒）</label>
+            <input type="number" id="cfg-card_render_timeout_sec" name="card_render_timeout_sec" min="5" max="120">
+          </div>
+          <div class="form-group">
+            <label for="cfg-t2i_source">T2I 服务来源</label>
+            <select id="cfg-t2i_source" name="t2i_source">
+              <option value="system">使用 AstrBot 系统配置</option>
+              <option value="custom">单独配置（自建 T2I 服务）</option>
+            </select>
+            <p class="form-hint">「使用 AstrBot 系统配置」跟随 AstrBot 全局 T2I 设置（默认）；「单独配置」则仅本插件使用下面的 T2I 端点。</p>
+          </div>
+          <div class="form-group hidden" id="group-t2i_endpoint">
+            <label for="cfg-t2i_endpoint">T2I 端点</label>
+            <input type="text" id="cfg-t2i_endpoint" name="t2i_endpoint" placeholder="http://127.0.0.1:8999">
+            <p class="form-hint">自建 astrbot-t2i-service 地址，如 <code>http://192.168.1.100:8999</code>（无需填 <code>/text2img</code>）；留空则回退系统配置。部署见 <code>docs/setup.md</code>。</p>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>搜索排序</legend>
+          <div class="form-group">
+            <label for="cfg-search_result_ranking">搜索结果按相关度排序</label>
+            <select id="cfg-search_result_ranking" name="search_result_ranking">
+              <option value="true">开启（默认）</option>
+              <option value="false">关闭（保持源站顺序）</option>
+            </select>
+            <p class="form-hint">跨源搜索结果按标题相关度排序；关闭恢复按源分组的原始顺序</p>
+          </div>
+          <div class="form-group">
+            <label for="cfg-search_display_limit">搜索结果显示条数</label>
+            <input type="number" id="cfg-search_display_limit" name="search_display_limit" min="1" max="50">
+            <p class="form-hint">相关度排序下最多显示的搜索结果条数</p>
+          </div>
+          <div class="form-group">
+            <label for="cfg-search_refresh_truncated_titles">自动补全截断标题</label>
+            <select id="cfg-search_refresh_truncated_titles" name="search_refresh_truncated_titles">
+              <option value="true">开启（默认）</option>
+              <option value="false">关闭</option>
+            </select>
+            <p class="form-hint">自动从源站详情页补全被截断的搜索标题（需开启相关度排序）</p>
+          </div>
+          <div class="form-group">
+            <label for="cfg-search_alias_expansion">Bangumi 别名扩展搜索</label>
+            <select id="cfg-search_alias_expansion" name="search_alias_expansion">
+              <option value="true">开启（默认）</option>
+              <option value="false">关闭</option>
+            </select>
+            <p class="form-hint">无强命中时用 Bangumi 官方译名/别名重搜；失败自动跳过</p>
+          </div>
+          <div class="form-group">
+            <label for="cfg-bangumi_mirror">Bangumi 镜像回退</label>
+            <select id="cfg-bangumi_mirror" name="bangumi_mirror">
+              <option value="false">关闭（直连官方，默认）</option>
+              <option value="true">开启（官方不可达时走镜像）</option>
+            </select>
+            <p class="form-hint">官方 api.bgm.tv 不可达时改用镜像回退</p>
+          </div>
+          <div class="form-group">
+            <label for="cfg-bangumi_mirror_url">自定义 Bangumi 镜像地址</label>
+            <input type="text" id="cfg-bangumi_mirror_url" name="bangumi_mirror_url" placeholder="留空使用内置镜像">
+            <p class="form-hint">自定义 Bangumi API 镜像根地址；留空使用内置镜像</p>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>阅读体验</legend>
+          <div class="form-group">
+            <label for="cfg-max_pages">单次最大发送页数</label>
+            <input type="number" id="cfg-max_pages" name="max_pages" min="1" max="200">
+          </div>
+          <div class="form-group">
+            <label for="cfg-send_mode">图片发送模式</label>
+            <select id="cfg-send_mode" name="send_mode">
+              <option value="image">直接发图</option>
+              <option value="forward">合并转发</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cfg-image_fetch_mode">图片获取方式</label>
+            <select id="cfg-image_fetch_mode" name="image_fetch_mode">
+              <option value="url">URL 直接引用</option>
+              <option value="download">先下载到本地</option>
+            </select>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>下载打包</legend>
+          <div class="form-group">
+            <label for="cfg-download_format">默认打包格式</label>
+            <select id="cfg-download_format" name="download_format">
+              <option value="zip">ZIP 压缩包</option>
+              <option value="pdf">PDF 文档</option>
+              <option value="cbz">CBZ 漫画</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cfg-download_concurrency">并行下载数</label>
+            <input type="number" id="cfg-download_concurrency" name="download_concurrency" min="1" max="20">
+          </div>
+          <div class="form-group">
+            <label for="cfg-download_retries">下载重试次数</label>
+            <input type="number" id="cfg-download_retries" name="download_retries" min="0" max="10">
+          </div>
+          <div class="form-group">
+            <label for="cfg-file_delivery_max_pages">文件打包页数上限</label>
+            <input type="number" id="cfg-file_delivery_max_pages" name="file_delivery_max_pages" min="1" max="2000">
+            <p class="form-hint">打包为文件时的单章页数上限，整卷/合集章节可调大</p>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>自动推送</legend>
+          <div class="form-group">
+            <label for="cfg-auto_push_mode">推送模式</label>
+            <select id="cfg-auto_push_mode" name="auto_push_mode">
+              <option value="image">图片（复用阅读）</option>
+              <option value="file">文件（复用下载）</option>
+            </select>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>AI 漫画工具</legend>
+          <div class="form-group">
+            <label for="cfg-enable_ai_tools">启用 AI 漫画工具</label>
+            <select id="cfg-enable_ai_tools" name="enable_ai_tools">
+              <option value="true">开启</option>
+              <option value="false">关闭</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cfg-allow_ai_send">允许 AI 直接发送漫画</label>
+            <select id="cfg-allow_ai_send" name="allow_ai_send">
+              <option value="true">允许（仅限用户明确要求）</option>
+              <option value="false">禁止</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cfg-ai_max_sources">单次搜索最多漫画源数</label>
+            <input type="number" id="cfg-ai_max_sources" name="ai_max_sources" min="1" max="10">
+          </div>
+          <div class="form-group">
+            <label for="cfg-ai_results_per_source">每个源最多候选数</label>
+            <input type="number" id="cfg-ai_results_per_source" name="ai_results_per_source" min="1" max="20">
+          </div>
+          <div class="form-group">
+            <label for="cfg-ai_tool_timeout_sec">Tool 超时（秒）</label>
+            <input type="number" id="cfg-ai_tool_timeout_sec" name="ai_tool_timeout_sec" min="10" max="300">
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>高级</legend>
+          <div class="form-group">
+            <label for="cfg-check_interval">更新检查间隔（分钟）</label>
+            <input type="number" id="cfg-check_interval" name="check_interval" min="1">
+          </div>
+          <div class="form-group">
+            <label for="cfg-chapter_cache_hours">章节缓存时间（小时）</label>
+            <input type="number" id="cfg-chapter_cache_hours" name="chapter_cache_hours" min="-1">
+          </div>
+          <div class="form-group">
+            <label for="cfg-default_source_id">默认搜索源 ID</label>
+            <input type="number" id="cfg-default_source_id" name="default_source_id" min="0">
+          </div>
+          <div class="form-group">
+            <label for="cfg-chapter_list_show_cover">章节列表显示封面</label>
+            <select id="cfg-chapter_list_show_cover" name="chapter_list_show_cover">
+              <option value="true">开启</option>
+              <option value="false">关闭</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cfg-temp_dir">临时文件目录</label>
+            <input type="text" id="cfg-temp_dir" name="temp_dir" placeholder="留空使用系统默认">
+          </div>
+        </fieldset>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">保存配置</button>
+          <span id="config-msg" class="form-msg"></span>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

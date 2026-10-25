@@ -3,7 +3,7 @@
 Usage:
     uv run pytest tests/test_live_web_api.py -v -s
 
-Set SUWAYOMI_URL env var or it defaults to http://100.87.49.15:4567
+Set SUWAYOMI_URL and SUWAYOMI_LIVE_TESTS=1 explicitly.
 Set SUWAYOMI_AUTH_MODE / SUWAYOMI_USERNAME / SUWAYOMI_PASSWORD for auth.
 """
 import os
@@ -12,10 +12,10 @@ import time
 import pytest
 import pytest_asyncio
 
-from suwayomi.client import SuwayomiClient, SuwayomiError
-from suwayomi.models import Source
-from utils.subscription import SubscriptionManager
-from web.api import (
+from plugin_pkg.suwayomi.client import SuwayomiClient, SuwayomiError
+from plugin_pkg.suwayomi.models import Source
+from plugin_pkg.utils.subscription import SubscriptionManager
+from plugin_pkg.web.api import (
     api_config_get,
     api_config_post,
     api_sources,
@@ -26,7 +26,7 @@ from web.api import (
     api_update,
 )
 
-SERVER_URL = os.environ.get("SUWAYOMI_URL", "http://100.87.49.15:4567")
+SERVER_URL = os.environ.get("SUWAYOMI_URL", "")
 AUTH_MODE = os.environ.get("SUWAYOMI_AUTH_MODE", "none")
 AUTH_USER = os.environ.get("SUWAYOMI_USERNAME", "")
 AUTH_PASS = os.environ.get("SUWAYOMI_PASSWORD", "")
@@ -34,7 +34,7 @@ AUTH_PASS = os.environ.get("SUWAYOMI_PASSWORD", "")
 from tests.helpers import server_reachable_sync  # noqa: E402
 
 pytestmark = pytest.mark.skipif(
-    not server_reachable_sync(SERVER_URL),
+    not SERVER_URL or os.environ.get("SUWAYOMI_LIVE_TESTS") != "1" or not server_reachable_sync(SERVER_URL),
     reason="Suwayomi-Server 不可达，跳过集成测试（可用 SUWAYOMI_URL 指定地址）",
 )
 
@@ -314,7 +314,7 @@ async def test_config_post_save(config):
         rebuild_called = True
 
     result = await api_config_post(config, {
-        "server_url": "http://100.87.49.15:4567",
+        "server_url": "",
         "max_pages": 50,
     }, rebuild)
 

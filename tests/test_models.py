@@ -1,4 +1,4 @@
-from suwayomi.models import Source, Manga, Chapter, SearchResult
+from plugin_pkg.suwayomi.models import Source, Manga, Chapter, SearchResult
 
 
 def test_source_from_dict():

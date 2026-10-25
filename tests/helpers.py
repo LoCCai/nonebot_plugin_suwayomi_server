@@ -35,7 +35,7 @@ async def t2i_reachable(endpoint: str, timeout: float = 3.0) -> bool:
     Only the service root needs to answer — rendering is exercised by the
     tests themselves, so a 404/405 here still means "service is up".
     """
-    from suwayomi.t2i import normalize_endpoint
+    from plugin_pkg.suwayomi.t2i import normalize_endpoint
 
     base = normalize_endpoint(endpoint)
     if not base:

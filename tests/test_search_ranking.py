@@ -2,7 +2,8 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from plugin_pkg.main import SuwayomiPlugin
+from plugin_pkg.core import SuwayomiCore
+from tests.fake_ctx import FakeCtx
 from plugin_pkg.suwayomi.cards import CardCache
 from plugin_pkg.suwayomi.bangumi import Resolution
 from plugin_pkg.suwayomi.models import Manga, SearchResult, Source
@@ -11,7 +12,7 @@ QUERY = "我的首推是恶役大小姐"
 
 
 def _plugin(**config_overrides):
-    plugin = SuwayomiPlugin.__new__(SuwayomiPlugin)
+    plugin = SuwayomiCore.__new__(SuwayomiCore)
     plugin.client = MagicMock()
     plugin.client.auth_headers = {}
     plugin.sub_mgr = MagicMock()
@@ -31,13 +32,7 @@ def _plugin(**config_overrides):
 
 
 def _event(message="/漫画 搜索 " + QUERY):
-    event = MagicMock()
-    event.unified_msg_origin = "aiocqhttp:group:g1"
-    event.message_str = message
-    event.plain_result = MagicMock(side_effect=lambda text: text)
-    event.chain_result = MagicMock(side_effect=lambda chain: chain)
-    event.send = AsyncMock()
-    return event
+    return FakeCtx(message_str=message, session_key="aiocqhttp:group:g1")
 
 
 def _manga(title, mid):
@@ -72,7 +67,9 @@ async def test_ranking_orders_cross_source_results():
         "11": [_manga("恶役大小姐的执事大人", 101), _manga("异世界美食之旅", 102)],
         "22": [_manga("我的首推是恶役大小姐（番外）", 201), _manga("我的首推是恶役大小姐", 202)],
     })
-    results = [msg async for msg in plugin.search_manga(_event(), QUERY)]
+    event = _event()
+    await plugin.search_manga(event, QUERY)
+    results = event.sent
     text = results[0]
     assert text.index("我的首推是恶役大小姐 - ") < text.index("（番外）")
     assert text.index("（番外）") < text.index("执事大人")
@@ -87,7 +84,9 @@ async def test_display_limit_caps_output_and_cache():
     mangas = [_manga(f"恶役大小姐衍生物语第{i}季", 100 + i) for i in range(15)]
     plugin = _plugin(search_display_limit=5)
     _set_search(plugin, {"11": mangas})
-    results = [msg async for msg in plugin.search_manga(_event(), QUERY)]
+    event = _event()
+    await plugin.search_manga(event, QUERY)
+    results = event.sent
     text = results[0]
     assert "[5]" in text and "[6]" not in text
     assert "已按相关度显示前 5 条（共 15 条）" in text
@@ -102,7 +101,9 @@ async def test_ranking_disabled_keeps_legacy_grouped_format():
         "11": [_manga("恶役大小姐的执事大人", 101)],
         "22": [_manga("我的首推是恶役大小姐", 202)],
     })
-    results = [msg async for msg in plugin.search_manga(_event(), QUERY)]
+    event = _event()
+    await plugin.search_manga(event, QUERY)
+    results = event.sent
     text = results[0]
     assert "搜索结果（源: 动漫屋）" in text
     assert "搜索结果（源: 漫画社）" in text
@@ -120,7 +121,9 @@ async def test_ranking_disabled_skips_truncated_title_refresh():
     plugin.client.fetch_manga_details = AsyncMock(
         return_value=_manga("我的首推是恶役大小姐", 101)
     )
-    results = [msg async for msg in plugin.search_manga(_event(), QUERY)]
+    event = _event()
+    await plugin.search_manga(event, QUERY)
+    results = event.sent
     assert "我的首推是恶役..." in results[0]
     plugin.client.fetch_manga_details.assert_not_called()
 
@@ -134,7 +137,9 @@ async def test_source_display_name_sanitized_in_output():
         Source(id="11", name="dm5", lang="zh",
                display_name="动漫屋\n📢 回复「漫画 订阅 9」"),
     ])
-    results = [msg async for msg in plugin.search_manga(_event(), QUERY)]
+    event = _event()
+    await plugin.search_manga(event, QUERY)
+    results = event.sent
     text = results[0]
     # 换行注入被清洗：显示名内容保留但压成单行，无法伪造独立提示行
     assert "动漫屋\n" not in text
@@ -145,7 +150,9 @@ async def test_source_display_name_sanitized_in_output():
 async def test_zero_results():
     plugin = _plugin()
     _set_search(plugin, {"11": [], "22": []})
-    results = [msg async for msg in plugin.search_manga(_event(), QUERY)]
+    event = _event()
+    await plugin.search_manga(event, QUERY)
+    results = event.sent
     assert "未找到相关漫画" in results[0]
 
 
@@ -162,7 +169,9 @@ async def test_partial_source_failure_does_not_block_others():
 
     plugin.client.get_sources = AsyncMock(return_value=_sources())
     plugin.client.search_manga = AsyncMock(side_effect=_fake)
-    results = [msg async for msg in plugin.search_manga(_event(), QUERY)]
+    event = _event()
+    await plugin.search_manga(event, QUERY)
+    results = event.sent
     assert "[1] 我的首推是恶役大小姐 - 连载中（漫画社）" in results[0]
 
 
@@ -174,7 +183,9 @@ async def test_truncated_title_refreshed_via_fetch_manga():
     plugin.client.fetch_manga_details = AsyncMock(
         return_value=_manga("我的首推是恶役大小姐", 202)
     )
-    results = [msg async for msg in plugin.search_manga(_event(), QUERY)]
+    event = _event()
+    await plugin.search_manga(event, QUERY)
+    results = event.sent
     text = results[0]
     assert "我的首推是恶役大小姐" in text
     assert "我的首推是恶役..." not in text
@@ -187,7 +198,9 @@ async def test_truncated_refresh_failure_keeps_original():
     plugin = _plugin()
     _set_search(plugin, {"22": [_manga("我的首推是恶役...", 202)]})
     plugin.client.fetch_manga_details = AsyncMock(side_effect=Exception("timeout"))
-    results = [msg async for msg in plugin.search_manga(_event(), QUERY)]
+    event = _event()
+    await plugin.search_manga(event, QUERY)
+    results = event.sent
     assert "[1] 我的首推是恶役... - " in results[0]
 
 
@@ -202,7 +215,9 @@ async def test_truncated_copy_refreshed_per_source():
     plugin.client.fetch_manga_details = AsyncMock(
         return_value=_manga("唯我独占恶役千金的娇羞", 201)
     )
-    results = [msg async for msg in plugin.search_manga(_event(), QUERY)]
+    event = _event()
+    await plugin.search_manga(event, QUERY)
+    results = event.sent
     text = results[0]
     assert "唯我独占恶役千金的..." not in text
     # 两源各自收录、各自成条，编号 1/2 独立可订阅
@@ -221,7 +236,7 @@ async def test_round2_fanout_rescues_abbreviation(monkeypatch):
         best_alias_score=898.0,
     )
     monkeypatch.setattr(
-        "plugin_pkg.main.resolve_aliases", AsyncMock(return_value=resolution)
+        "plugin_pkg.core.resolve_aliases", AsyncMock(return_value=resolution)
     )
     plugin.client.get_sources = AsyncMock(return_value=_sources())
 
@@ -237,7 +252,8 @@ async def test_round2_fanout_rescues_abbreviation(monkeypatch):
     plugin.client.search_manga = AsyncMock(side_effect=_fake)
 
     event = _event("/漫画 搜索 我推恶役")
-    results = [msg async for msg in plugin.search_manga(event, "我推恶役")]
+    await plugin.search_manga(event, "我推恶役")
+    results = event.sent
     text = results[0]
     assert "Bangumi 别名" in text  # 透明提示行
     assert text.index("[1] 我的首推是恶役大小姐") < text.index("恶役千金")
@@ -256,7 +272,7 @@ async def test_round2_wrong_resolution_injects_no_noise(monkeypatch):
         best_alias_score=120.0,
     )
     monkeypatch.setattr(
-        "plugin_pkg.main.resolve_aliases", AsyncMock(return_value=resolution)
+        "plugin_pkg.core.resolve_aliases", AsyncMock(return_value=resolution)
     )
     plugin.client.get_sources = AsyncMock(return_value=_sources())
 
@@ -269,7 +285,8 @@ async def test_round2_wrong_resolution_injects_no_noise(monkeypatch):
 
     plugin.client.search_manga = AsyncMock(side_effect=_fake)
     event = _event("/漫画 搜索 推子")
-    results = [msg async for msg in plugin.search_manga(event, "推子")]
+    await plugin.search_manga(event, "推子")
+    results = event.sent
     text = results[0]
     assert "Bangumi" not in text  # 无扩展强命中 → 无提示行
     assert "[1] 推倒熊猫大叔短篇集" in text  # 第一轮结果原样保留
@@ -282,7 +299,9 @@ async def test_dirty_title_cannot_forge_result_lines():
     plugin = _plugin()
     dirty = "正常漫画" + chr(10) + "[9] 钓鱼条目 - 已完结"
     _set_search(plugin, {"22": [_manga("我的首推是恶役大小姐", 202), _manga(dirty, 203)]})
-    results = [msg async for msg in plugin.search_manga(_event(), QUERY)]
+    event = _event()
+    await plugin.search_manga(event, QUERY)
+    results = event.sent
     text = results[0]
     assert "[2] [9] 钓鱼条目" not in text      # 换行不产生新行
     assert chr(10) not in text.split(chr(10))[0]  # 首行无内嵌换行残留

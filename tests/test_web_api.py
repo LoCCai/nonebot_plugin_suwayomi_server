@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from web.api import (
+from plugin_pkg.web.api import (
     api_status,
     api_subscriptions,
     api_subscription_delete,
@@ -40,7 +40,7 @@ def fake_plugin():
 
 @pytest.fixture
 def sub_mgr(fake_plugin):
-    from utils.subscription import SubscriptionManager
+    from plugin_pkg.utils.subscription import SubscriptionManager
     return SubscriptionManager(fake_plugin)
 
 
@@ -49,7 +49,7 @@ def sub_mgr(fake_plugin):
 
 @pytest.mark.asyncio
 async def test_status_connected(mock_client, sub_mgr, fake_plugin):
-    from suwayomi.models import Source
+    from plugin_pkg.suwayomi.models import Source
 
     mock_client.get_sources = AsyncMock(return_value=[
         Source(id="1", name="src", lang="zh", display_name="源"),
@@ -71,7 +71,7 @@ async def test_status_disconnected(mock_client, sub_mgr, fake_plugin):
 
 @pytest.mark.asyncio
 async def test_status_counts(mock_client, sub_mgr, fake_plugin):
-    from suwayomi.models import Manga
+    from plugin_pkg.suwayomi.models import Manga
 
     await sub_mgr.subscribe(1, "A", 10, "u1")
     await sub_mgr.subscribe(1, "A", 10, "u2")
@@ -100,7 +100,7 @@ async def test_subscriptions_empty(mock_client, sub_mgr):
 
 @pytest.mark.asyncio
 async def test_subscriptions_with_data(mock_client, sub_mgr):
-    from suwayomi.models import Source
+    from plugin_pkg.suwayomi.models import Source
 
     await sub_mgr.subscribe(42, "One Piece", 100, "user1")
     await sub_mgr.subscribe(42, "One Piece", 100, "user2")
@@ -374,7 +374,8 @@ async def test_config_post_validates_numeric_string():
 
 
 @pytest.mark.asyncio
-async def test_config_post_coerces_ai_tool_booleans_and_limits():
+async def test_config_post_ignores_removed_ai_keys():
+    """NoneBot 版未移植 AI 工具，相关键不再白名单内，不得写入配置。"""
     cfg = FakeConfig({"server_url": "http://old:4567"})
 
     result = await api_config_post(cfg, {
@@ -382,16 +383,10 @@ async def test_config_post_coerces_ai_tool_booleans_and_limits():
         "enable_ai_tools": "false",
         "allow_ai_send": "true",
         "ai_max_sources": 999,
-        "ai_results_per_source": 0,
-        "ai_tool_timeout_sec": 999,
     }, AsyncMock())
 
     assert result["success"] is True
-    assert cfg["ai"]["enable_ai_tools"] is False
-    assert cfg["ai"]["allow_ai_send"] is True
-    assert cfg["ai"]["ai_max_sources"] == 10
-    assert cfg["ai"]["ai_results_per_source"] == 1
-    assert cfg["ai"]["ai_tool_timeout_sec"] == 300
+    assert "ai" not in cfg
 
 
 @pytest.mark.asyncio
@@ -501,13 +496,11 @@ def test_config_get_only_returns_allowed_keys():
         "server_url": "http://localhost:4567",
         "password": "pw",
         "internal_key": "secret",
-        "enable_ai_tools": True,  # whitelisted, returned as-is
     }
     result = api_config_get(cfg)
     assert "server_url" in result
     assert "password" in result
     assert "internal_key" not in result
-    assert result["enable_ai_tools"] is True
 
 
 # ── api_sources ─────────────────────────────────────────
@@ -515,7 +508,7 @@ def test_config_get_only_returns_allowed_keys():
 
 @pytest.mark.asyncio
 async def test_sources_list(mock_client):
-    from suwayomi.models import Source
+    from plugin_pkg.suwayomi.models import Source
 
     mock_client.get_sources = AsyncMock(return_value=[
         Source(id="1", name="a", lang="zh", display_name="A"),
@@ -560,7 +553,8 @@ async def test_update_failure(fake_plugin):
     check = AsyncMock(side_effect=Exception("fail"))
     result = await api_update(check, fake_plugin.put_kv_data)
     assert result["success"] is False
-    assert "fail" in result["summary"]
+    assert "fail" not in result["summary"]
+    assert "日志" in result["summary"]
 
 
 @pytest.mark.asyncio

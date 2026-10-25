@@ -1,0 +1,205 @@
+from __future__ import annotations
+
+import asyncio
+from typing import Any
+
+from nonebot import logger
+
+KV_KEY = "suwayomi_subscriptions"
+PREF_KV_KEY = "suwayomi_push_defaults"
+
+
+class SubscriptionManager:
+    def __init__(self, plugin):
+        self._plugin = plugin
+        self._write_lock = asyncio.Lock()
+
+    async def _load(self) -> dict[str, Any]:
+        data = await self._plugin.get_kv_data(KV_KEY, {})
+        if not isinstance(data, dict):
+            return {}
+        return data
+
+    async def run_migration(self):
+        """Check for legacy subscription data and migrate to new format. Safe to call multiple times."""
+        async with self._write_lock:
+            data = await self._load()
+            if self._migrate(data):
+                await self._save(data)
+
+    @staticmethod
+    def _migrate(data: dict[str, Any]) -> bool:
+        """Migrate old list-format subscribers to dict format. Returns True if any migration occurred."""
+        migrated = False
+        for key in list(data.keys()):
+            info = data[key]
+            if not isinstance(info, dict):
+                logger.warning(
+                    f"[suwayomi_subscription] 丢弃损坏的订阅条目 {key!r}（格式非法）"
+                )
+                data.pop(key, None)
+                migrated = True
+                continue
+            subs = info.get("subscribers")
+            if isinstance(subs, list):
+                logger.info(f"[suwayomi_subscription] Migrating subscription data for manga {key}")
+                raw_auto_push = info.pop("auto_push", {})
+                auto_push = raw_auto_push if isinstance(raw_auto_push, dict) else {}
+                info["subscribers"] = {
+                    umo: {"push_enabled": auto_push.get(umo, {}).get("enabled", False) if isinstance(auto_push.get(umo), dict) else False}
+                    for umo in subs
+                }
+                migrated = True
+        if migrated:
+            logger.info("[suwayomi_subscription] Subscription data migration completed")
+        return migrated
+
+    async def _save(self, data: dict[str, Any]):
+        await self._plugin.put_kv_data(KV_KEY, data)
+
+    async def _load_prefs(self) -> dict[str, bool]:
+        data = await self._plugin.get_kv_data(PREF_KV_KEY, {})
+        if not isinstance(data, dict):
+            return {}
+        return data
+
+    async def _save_prefs(self, data: dict[str, bool]):
+        await self._plugin.put_kv_data(PREF_KV_KEY, data)
+
+    async def set_push_default(self, umo: str, enabled: bool):
+        """Remember the session's push preference for future subscriptions."""
+        async with self._write_lock:
+            prefs = await self._load_prefs()
+            prefs[umo] = enabled
+            await self._save_prefs(prefs)
+
+    async def get_push_default(self, umo: str) -> bool:
+        """Return the session's saved push preference (default: False)."""
+        prefs = await self._load_prefs()
+        return prefs.get(umo, False)
+
+    async def clear_push_default(self, umo: str):
+        """Remove the session's push preference, reverting to default (False)."""
+        async with self._write_lock:
+            prefs = await self._load_prefs()
+            prefs.pop(umo, None)
+            await self._save_prefs(prefs)
+
+    async def subscribe(self, manga_id: int, title: str, source_id: int, umo: str):
+        async with self._write_lock:
+            data = await self._load()
+            key = str(manga_id)
+            if key not in data:
+                data[key] = {
+                    "title": title,
+                    "source_id": source_id,
+                    "latest_chapter_id": 0,
+                    "subscribers": {},
+                }
+            if umo not in data[key]["subscribers"]:
+                data[key]["subscribers"][umo] = {"push_enabled": await self.get_push_default(umo)}
+            await self._save(data)
+
+    async def unsubscribe(self, manga_id: int, umo: str):
+        async with self._write_lock:
+            data = await self._load()
+            key = str(manga_id)
+            if key in data:
+                data[key]["subscribers"].pop(umo, None)
+                if not data[key]["subscribers"]:
+                    del data[key]
+            await self._save(data)
+
+    async def get_subscriptions(self, umo: str) -> list[dict[str, Any]]:
+        data = await self._load()
+        result = []
+        for manga_id, info in data.items():
+            if umo in info.get("subscribers", {}):
+                try:
+                    resolved_id = int(manga_id)
+                except (TypeError, ValueError):
+                    # 与更新引擎一致：外部损坏的非数字键跳过而非崩溃
+                    logger.debug(
+                        f"[suwayomi_subscription] 跳过损坏的非数字订阅键 {manga_id!r}"
+                    )
+                    continue
+                result.append({
+                    "manga_id": resolved_id,
+                    "title": info["title"],
+                    "source_id": info.get("source_id", 0),
+                    "latest_chapter_id": info.get("latest_chapter_id", 0),
+                    "push_enabled": info.get("subscribers", {}).get(umo, {}).get("push_enabled", False),
+                })
+        return result
+
+    async def get_all_subscriptions(self) -> dict[str, Any]:
+        return await self._load()
+
+    async def delete_manga(self, manga_id: int):
+        async with self._write_lock:
+            data = await self._load()
+            key = str(manga_id)
+            if key in data:
+                del data[key]
+                await self._save(data)
+
+    async def update_latest_chapter(self, manga_id: int, chapter_id: int):
+        async with self._write_lock:
+            data = await self._load()
+            key = str(manga_id)
+            if key in data:
+                data[key]["latest_chapter_id"] = chapter_id
+                await self._save(data)
+
+    async def record_delivery(self, manga_id: int, umo: str, chapter_id: int):
+        """Advance only this recipient after confirmed delivery, preserving retries."""
+        async with self._write_lock:
+            data = await self._load()
+            info = data.get(str(manga_id))
+            if not info or umo not in info.get("subscribers", {}):
+                return
+            old = info.get("latest_chapter_id", 0)
+            sub = info["subscribers"][umo]
+            sub["delivered_chapter_id"] = max(sub.get("delivered_chapter_id", old), chapter_id)
+            info["latest_chapter_id"] = min(
+                entry.get("delivered_chapter_id", old)
+                for entry in info["subscribers"].values()
+            )
+            await self._save(data)
+
+    async def update_title(self, manga_id: int, new_title: str) -> bool:
+        async with self._write_lock:
+            data = await self._load()
+            key = str(manga_id)
+            if key in data and data[key].get("title") != new_title:
+                data[key]["title"] = new_title
+                await self._save(data)
+                return True
+            return False
+
+    async def set_auto_push(self, manga_id: int, umo: str, enabled: bool):
+        async with self._write_lock:
+            data = await self._load()
+            key = str(manga_id)
+            if key in data and umo in data[key]["subscribers"]:
+                data[key]["subscribers"][umo]["push_enabled"] = enabled
+                await self._save(data)
+
+    async def get_auto_push(self, manga_id: int, umo: str) -> bool:
+        data = await self._load()
+        return self.is_auto_push_enabled(data, manga_id, umo)
+
+    @staticmethod
+    def is_auto_push_enabled(data: dict[str, Any], manga_id: int, umo: str) -> bool:
+        key = str(manga_id)
+        info = data.get(key, {})
+        sub = info.get("subscribers", {}).get(umo, {})
+        return sub.get("push_enabled", False)
+
+    async def set_auto_push_all(self, umo: str, enabled: bool):
+        async with self._write_lock:
+            data = await self._load()
+            for info in data.values():
+                if umo in info.get("subscribers", {}):
+                    info["subscribers"][umo]["push_enabled"] = enabled
+            await self._save(data)

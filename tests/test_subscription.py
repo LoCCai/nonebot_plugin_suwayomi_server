@@ -2,7 +2,7 @@ import asyncio
 import copy
 
 import pytest
-from utils.subscription import SubscriptionManager
+from plugin_pkg.utils.subscription import SubscriptionManager
 
 
 class FakePlugin:

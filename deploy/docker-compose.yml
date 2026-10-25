@@ -1,0 +1,38 @@
+services:
+  suwayomi-server:
+    image: ghcr.io/suwayomi/suwayomi-server:v2.4.2366@sha256:f6ec424815098376ce47015376b9a32322089b4eae0eca59eb37b687e3ee0054
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:${SUWAYOMI_PORT:-4567}:4567"
+    environment:
+      TZ: Asia/Shanghai
+      AUTH_MODE: basic_auth
+      AUTH_USERNAME: ${SUWAYOMI_AUTH_USERNAME:?set backend username}
+      AUTH_PASSWORD: ${SUWAYOMI_AUTH_PASSWORD:?set backend password}
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx768m
+    volumes:
+      - suwayomi-data:/home/suwayomi/.local/share/Tachidesk
+    mem_limit: 1536m
+    cpus: 2
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          printf 'user = "%s:%s"\n' "$${AUTH_USERNAME}" "$${AUTH_PASSWORD}" |
+          curl --config - --fail --silent --max-time 10
+          --header 'Content-Type: application/json'
+          --data '{"query":"{__typename}"}'
+          http://127.0.0.1:4567/api/graphql >/dev/null
+      interval: 30s
+      timeout: 12s
+      start_period: 90s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  suwayomi-data:

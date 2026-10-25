@@ -6,8 +6,8 @@ import copy
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from suwayomi.models import Chapter
-from suwayomi.service import (
+from plugin_pkg.suwayomi.models import Chapter
+from plugin_pkg.suwayomi.service import (
     fmt_chapter_display,
     fmt_chapter_label,
     resolve_chapter,
@@ -145,7 +145,7 @@ class TestChapterTimestampConcurrency:
 
     @pytest.mark.asyncio
     async def test_concurrent_set_chapter_timestamp_preserves_all(self):
-        from suwayomi.service import set_chapter_timestamp
+        from plugin_pkg.suwayomi.service import set_chapter_timestamp
 
         store: dict = {}
 
@@ -169,21 +169,21 @@ class TestChapterTimestampConcurrency:
 class TestFmtDeliveryFailureMessage:
 
     def test_no_pages(self):
-        from suwayomi.service import fmt_delivery_failure_message
+        from plugin_pkg.suwayomi.service import fmt_delivery_failure_message
         assert "暂无可用页面" in fmt_delivery_failure_message(0, "download", "none")
 
     def test_download_failed_with_auth(self):
-        from suwayomi.service import fmt_delivery_failure_message
+        from plugin_pkg.suwayomi.service import fmt_delivery_failure_message
         msg = fmt_delivery_failure_message(30, "download", "jwt")
         assert "30" in msg and "jwt" in msg and "认证" in msg
 
     def test_download_failed_without_auth(self):
-        from suwayomi.service import fmt_delivery_failure_message
+        from plugin_pkg.suwayomi.service import fmt_delivery_failure_message
         msg = fmt_delivery_failure_message(10, "download", "none")
         assert "10" in msg and "认证" not in msg
 
     def test_url_mode_with_auth(self):
-        from suwayomi.service import fmt_delivery_failure_message
+        from plugin_pkg.suwayomi.service import fmt_delivery_failure_message
         msg = fmt_delivery_failure_message(5, "url", "basic")
         assert "URL 模式" in msg and "下载模式" in msg
 
@@ -191,14 +191,14 @@ class TestFmtDeliveryFailureMessage:
 class TestTtlCacheHelpers:
 
     def test_lookup_expires(self):
-        from suwayomi.service import ttl_cache_lookup, ttl_cache_store
+        from plugin_pkg.suwayomi.service import ttl_cache_lookup, ttl_cache_store
         cache = {}
         ttl_cache_store(cache, "a", 1, max_entries=4, now=100.0)
         assert ttl_cache_lookup(cache, "a", 10, now=105.0) == 1
         assert ttl_cache_lookup(cache, "a", 10, now=115.0) is None
 
     def test_store_evicts_oldest(self):
-        from suwayomi.service import ttl_cache_lookup, ttl_cache_store
+        from plugin_pkg.suwayomi.service import ttl_cache_lookup, ttl_cache_store
         cache = {}
         ttl_cache_store(cache, "a", 1, max_entries=2, now=1.0)
         ttl_cache_store(cache, "b", 2, max_entries=2, now=2.0)
@@ -212,26 +212,26 @@ class TestSplitSearchQuery:
 
     def test_message_with_trailing_source_hint(self):
         """Full message keeps the trailing source hint lost by AstrBot's arg split."""
-        from suwayomi.service import split_search_query
+        from plugin_pkg.suwayomi.service import split_search_query
         kw, hint = split_search_query("/漫画 搜索 安达与岛村 再漫画", "安达与岛村")
         assert kw == "安达与岛村"
         assert hint == "再漫画"
 
     def test_message_without_source_hint(self):
-        from suwayomi.service import split_search_query
+        from plugin_pkg.suwayomi.service import split_search_query
         kw, hint = split_search_query("/漫画 搜索 安达与岛村", "安达与岛村")
         assert kw == "安达与岛村"
         assert hint == ""
 
     def test_falls_back_to_keyword_param(self):
         """When message parsing fails, use the AstrBot keyword param as-is."""
-        from suwayomi.service import split_search_query
+        from plugin_pkg.suwayomi.service import split_search_query
         kw, hint = split_search_query("", "安达与岛村 再漫画")
         assert kw == "安达与岛村"
         assert hint == "再漫画"
 
     def test_empty_message_and_keyword(self):
-        from suwayomi.service import split_search_query
+        from plugin_pkg.suwayomi.service import split_search_query
         kw, hint = split_search_query("", "")
         assert kw == ""
         assert hint == ""
@@ -240,7 +240,7 @@ class TestSplitSearchQuery:
 class TestMatchSourceHint:
 
     def _sources(self):
-        from suwayomi.models import Source
+        from plugin_pkg.suwayomi.models import Source
         return [
             Source(id="0", name="Local", lang="en", display_name="Local source"),
             Source(id="1", name="CopyManga", lang="zh", display_name="拷贝漫画 (ZH)"),
@@ -250,33 +250,33 @@ class TestMatchSourceHint:
         ]
 
     def test_exact_lang(self):
-        from suwayomi.service import match_source_hint
+        from plugin_pkg.suwayomi.service import match_source_hint
         assert match_source_hint(self._sources(), "zh").id == "1"
 
     def test_full_display_name(self):
-        from suwayomi.service import match_source_hint
+        from plugin_pkg.suwayomi.service import match_source_hint
         assert match_source_hint(self._sources(), "再漫画").id == "4"
 
     def test_prefix_of_display_name(self):
-        from suwayomi.service import match_source_hint
+        from plugin_pkg.suwayomi.service import match_source_hint
         assert match_source_hint(self._sources(), "拷贝").id == "1"
 
     def test_single_char_prefix_matches(self):
         """'再' is a prefix of 再漫画 — matches, and mis-use is the user's fault."""
-        from suwayomi.service import match_source_hint
+        from plugin_pkg.suwayomi.service import match_source_hint
         assert match_source_hint(self._sources(), "再").id == "4"
 
     def test_substring_not_prefix_rejected(self):
         """'漫画' is a substring of 拷贝漫画 but not a prefix — falls back to keyword."""
-        from suwayomi.service import match_source_hint
+        from plugin_pkg.suwayomi.service import match_source_hint
         assert match_source_hint(self._sources(), "漫画") is None
 
     def test_local_source_excluded(self):
-        from suwayomi.service import match_source_hint
+        from plugin_pkg.suwayomi.service import match_source_hint
         assert match_source_hint(self._sources(), "local") is None
 
     def test_no_match(self):
-        from suwayomi.service import match_source_hint
+        from plugin_pkg.suwayomi.service import match_source_hint
         assert match_source_hint(self._sources(), "bilibili") is None
 
 
@@ -286,8 +286,8 @@ class TestSearchBestMatch:
     async def test_default_sources_exclude_local_and_dedupe_variants(self):
         """Default multi-source search must skip the local source and prefer
         distinct extensions before MangaDex language variants."""
-        from suwayomi.models import Source
-        from suwayomi.service import search_best_match
+        from plugin_pkg.suwayomi.models import Source
+        from plugin_pkg.suwayomi.service import search_best_match
 
         sources = [
             Source(id="0", name="Local", lang="en", display_name="Local source"),
@@ -313,8 +313,8 @@ class TestSearchBestMatch:
 
     @pytest.mark.asyncio
     async def test_first_non_empty_result_wins(self):
-        from suwayomi.models import Manga, Source
-        from suwayomi.service import search_best_match
+        from plugin_pkg.suwayomi.models import Manga, Source
+        from plugin_pkg.suwayomi.service import search_best_match
 
         sources = [
             Source(id="0", name="Local", lang="en", display_name="Local"),
@@ -336,8 +336,8 @@ class TestSearchBestMatch:
 
     @pytest.mark.asyncio
     async def test_picks_best_match_within_source(self):
-        from suwayomi.models import Manga, Source
-        from suwayomi.service import search_best_match
+        from plugin_pkg.suwayomi.models import Manga, Source
+        from plugin_pkg.suwayomi.service import search_best_match
 
         sources = [Source(id="1", name="CopyManga", lang="zh", display_name="拷贝漫画")]
         noise = Manga(id=1, source_id=1, url="", title="安达与岛村的宠物狗")
@@ -355,7 +355,7 @@ class TestSearchBestMatch:
 # ── sanitize_for_message（自 bangumi.py 迁入，消息出口统一清洗） ──
 
 def test_sanitize_for_message_strips_injection():
-    from suwayomi.service import sanitize_for_message
+    from plugin_pkg.suwayomi.service import sanitize_for_message
     nl, tab, rtl = chr(10), chr(9), chr(0x202E)
     dirty = "正常别名" + nl + "回复「漫画 订阅 9」" + tab + rtl
     out = sanitize_for_message(dirty)

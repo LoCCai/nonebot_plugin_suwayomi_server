@@ -1,32 +1,29 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="logo.png">
-    <img src="https://raw.githubusercontent.com/FFFold/astrbot_plugin_suwayomi_server/main/logo.png" alt="Suwayomi 漫画助手" width="128" height="128">
-  </picture>
+  <img src="logo.png" alt="Suwayomi 漫画助手" width="128" height="128">
   <br>
   <h1 align="center"><b>📖 Suwayomi 漫画助手</b></h1>
   <p align="center">
-    基于 <a href="https://github.com/Suwayomi/Suwayomi-Server">Suwayomi-Server</a> 的 AstrBot 漫画插件
+    基于 <a href="https://github.com/Suwayomi/Suwayomi-Server">Suwayomi-Server</a> 的 NoneBot2 漫画插件
     <br>
-    搜索 · 阅读 · 下载 · 订阅更新 · 多平台
+    搜索 · 阅读 · 下载 · 订阅更新 · Web 管理面板
   </p>
   <p align="center">
-    <img src="https://img.shields.io/badge/AstrBot-%3E%3D4.16-blue?style=flat-square" alt="AstrBot >= 4.16">
-    <img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
+    <img src="https://img.shields.io/badge/NoneBot2-%3E%3D2.3-00BCD4?style=flat-square" alt="NoneBot2 >= 2.3">
+    <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+">
     <img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="License AGPL-3.0">
-    <img src="https://img.shields.io/badge/version-0.7.1-8A2BE2?style=flat-square" alt="Version 0.7.1">
-    <img src="https://img.shields.io/badge/support-8%20platforms-green?style=flat-square" alt="8 platforms">
-  </p>
-  <p align="center">
-    <b>⭐ 如果这个项目对你有帮助，欢迎 <a href="https://github.com/FFFold/astrbot_plugin_suwayomi_server">Star</a> 支持！</b>
+    <img src="https://img.shields.io/badge/version-0.8.0-8A2BE2?style=flat-square" alt="Version 0.8.0">
   </p>
 </p>
 
 ---
 
-基于强大的 [Suwayomi-Server](https://github.com/Suwayomi/Suwayomi-Server) 后端，为聊天平台（QQ / Telegram / Discord 等）提供漫画搜索、在线阅读、批量下载和订阅更新推送服务。
+基于强大的 [Suwayomi-Server](https://github.com/Suwayomi/Suwayomi-Server) 后端，为聊天平台提供漫画搜索、在线阅读、批量下载和订阅更新推送服务。
 
-> 🚀 **首次使用？** 查看 [Suwayomi-Server 部署教程](docs/setup.md) 快速上手。
+> 🚀 **首次使用？** 先按 [Suwayomi-Server 部署教程](https://github.com/Suwayomi/Suwayomi-Server) 起好服务并安装漫画源扩展。
+
+本插件移植自 AstrBot 插件
+[FFFold/astrbot_plugin_suwayomi_server](https://github.com/FFFold/astrbot_plugin_suwayomi_server)，
+功能对齐 v0.7.1（Agent 工具除外，见「与 AstrBot 版的差异」）。
 
 ---
 
@@ -34,32 +31,83 @@
 
 | | 功能 | 说明 |
 |---|---|---|
-| 🔍 | **多源搜索** | 跨多个已安装漫画源全局搜索，按相关度混排展示 |
-| 🤖 | **Agent工具** | 注册 AstrBot Agent Tool，支持 LLM 调用，从而搜索、发送漫画 |
-| 📖 | **在线阅读** | 直接在聊天中阅读漫画章节，支持逐页发送或合并转发 |
-| ⬇️ | **章节下载** | 下载章节页面并打包为 ZIP/PDF/CBZ 文件发送到聊天 |
+| 🔍 | **多源搜索** | 跨多个已安装漫画源全局搜索，按相关度混排展示（Bangumi 别名扩展） |
+| 📖 | **在线阅读** | 直接在聊天中阅读漫画章节，支持逐条发送或合并转发 |
+| ⬇️ | **章节下载** | 下载章节页面并打包为 ZIP/PDF/CBZ 文件发送 |
 | 🔔 | **订阅更新** | 订阅漫画后自动推送新章节通知，支持自定义检查间隔 |
 | 🔄 | **章节缓存** | 章节数据自动缓存可配置时长（默认 6h），也支持强制刷新 |
 | 🏷️ | **重复章节处理** | 智能识别重复章节号，通过 ID 精确选择 |
 | 🔐 | **多种认证** | 支持无认证 / Basic / JWT 三种 Suwayomi 认证模式 |
-| 🖼️ | **灵活发图** | 直接引用 URL 或先下载到本地再发送，适配不同网络环境 |
-| 🌐 | **多平台** | 支持 aiocqhttp / Telegram / QQ官方 / 企业微信 / 飞书 / Discord / Slack / KOOK |
-| 🖥️ | **管理面板** | AstrBot WebUI 内嵌仪表盘：连接状态总览、订阅管理、配置编辑 |
+| 🖼️ | **卡片渲染** | 搜索 / 订阅 / 章节列表 / 更新通知可渲染为带封面的精美卡片 |
+| 🌐 | **Web 管理面板** | 连接状态总览、订阅管理、配置编辑 |
 
 ---
 
-## 📸 效果预览
+## 📦 安装
 
-> 开启 `result_cards_enabled` 后，搜索 / 订阅 / 章节列表 / 更新通知等指令结果会通过 AstrBot T2I 服务渲染为带封面的卡片；章节列表、订阅确认、更新通知卡片会顺带展示漫画简介。
+要求：Python 3.10+，一个可用的 NoneBot2 实例（OneBot v11 适配器，如 NapCat / go-cqhttp / LLOneBot）。
 
-|  |  |
-|---|---|
-| ![搜索](docs/assets/漫画%20搜索%20致彼时繁花.jpg) | ![章节列表](docs/assets/漫画%20章节%20月不会数羊.jpg) |
-| **🔍 搜索** | **📖 章节列表** |
-| ![订阅确认](docs/assets/漫画%20订阅%204.jpg) | ![更新通知](docs/assets/漫画%20更新通知.jpg) |
-| **✅ 订阅确认** | **🔔 更新通知** |
-| ![批量订阅](docs/assets/漫画%20批量订阅.jpg) | ![我的订阅](docs/assets/漫画%20我的订阅.jpg) |
-| **📚 批量订阅** | **📋 我的订阅** |
+当前从 GitHub 安装（尚未发布到 PyPI），再按 NoneBot 项目的既有方式加载：
+
+```bash
+python -m pip install "git+https://github.com/LoCCai/nonebot_plugin_suwayomi_server.git"
+```
+
+```python
+nonebot.load_plugin("nonebot_plugin_suwayomi_server")
+```
+
+可选：安装卡片渲染依赖（Playwright 截图）：
+
+```bash
+python -m pip install "nonebot_plugin_suwayomi_server[cards] @ git+https://github.com/LoCCai/nonebot_plugin_suwayomi_server.git"
+playwright install chromium
+```
+
+---
+
+## 后端 Docker Compose
+
+仓库提供 [deploy/docker-compose.yml](deploy/docker-compose.yml)。复制
+`deploy/.env.example` 为 `deploy/.env`，设置随机密码并限制文件权限，然后：
+
+```bash
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d
+```
+
+固定 Suwayomi v2.4.2366，数据保存在命名卷，只监听宿主 `127.0.0.1:4567`。
+Bot 也在 Docker 中时，给服务接入 Bot 的既有网络，并用
+`http://suwayomi-server:4567`，不能用 Bot 容器自己的 localhost。
+插件认证模式为 `basic`（后端环境变量为 `AUTH_MODE=basic_auth`）。
+通过本地连接或 SSH 隧道访问后端，按需配置你信任的扩展仓库、安装漫画源；
+空书库和未安装源不会被视为连接失败。不要把未鉴权后端暴露到公网。
+
+## ⚙️ 配置
+
+在 NoneBot 的 `.env` / `.env.prod` 中配置（全部可选，WebUI 修改后以
+`data/suwayomi/config.json` 为准）：
+
+| 配置项 | 默认值 | 说明 |
+|---|---|---|
+| `SUWAYOMI_SERVER_URL` | `http://localhost:4567` | Suwayomi-Server 地址。请勿随意更换实例，否则订阅 ID 会混乱 |
+| `SUWAYOMI_AUTH_MODE` | `none` | 认证模式：`none` / `basic` / `jwt` |
+| `SUWAYOMI_USERNAME` / `SUWAYOMI_PASSWORD` | 空 | 认证凭据 |
+| `SUWAYOMI_RESULT_CARDS_ENABLED` | `false` | 指令结果卡片渲染（纯文本回退） |
+| `SUWAYOMI_T2I_SOURCE` | `system` | 卡片渲染来源：`system`（本地 htmlrender）/ `custom`（自建 T2I 服务） |
+| `SUWAYOMI_T2I_ENDPOINT` | 空 | 自建 T2I 服务端点（astrbot-t2i-service 兼容协议） |
+| `SUWAYOMI_MAX_PAGES` | `30` | 单次阅读最多发送页数 |
+| `SUWAYOMI_SEND_MODE` | `image` | 发送方式：`image` 逐条 / `forward` 合并转发（仅 OneBot v11 群聊） |
+| `SUWAYOMI_IMAGE_FETCH_MODE` | `download` | 图片获取：`download` 下载后发 / `url` 直接引用 URL |
+| `SUWAYOMI_DOWNLOAD_FORMAT` | `pdf` | 下载打包默认格式：`zip` / `pdf` / `cbz` |
+| `SUWAYOMI_CHECK_INTERVAL` | `60` | 更新检查间隔（分钟） |
+| `SUWAYOMI_CHAPTER_CACHE_HOURS` | `6` | 章节缓存时长（小时，`-1` 永久缓存，`0` 不缓存） |
+| `SUWAYOMI_AUTO_PUSH_MODE` | `image` | 自动推送内容：`image` 图片 / `file` 打包文件 |
+| `SUWAYOMI_DATA_DIR` | `data/suwayomi` | 数据目录（订阅 KV、运行时配置） |
+| `SUWAYOMI_DASHBOARD_TOKEN` | 空 | Web 管理 API 的 Bearer 令牌；留空禁用面板 |
+
+其余高级项（搜索排序、Bangumi 别名扩展、下载并发/重试等）可在 Web 面板「设置」页调整。
+
+> **注意**：Web 面板保存的配置写入 `data/suwayomi/config.json`，会覆盖 `.env` 中的同名项。
 
 ---
 
@@ -68,271 +116,113 @@
 | 命令 | 说明 |
 |---|---|
 | `/漫画 源` | 列出所有已安装的漫画源 |
-| `/漫画 搜索 <关键词> [源名]` | 从多个源搜索漫画（多词标题用 `+` 连接，如 `香格里拉+再`；`源名` 可用「漫画 源」查看） |
+| `/漫画 搜索 <关键词> [源名]` | 从多个源搜索漫画（多词标题用 `+` 连接，如 `香格里拉+再`） |
 | `/漫画 订阅 <编号>` | 订阅搜索结果中的漫画 |
 | `/漫画 批量订阅 <名称1>, <名称2>, ... [源名]` | 批量订阅多部漫画（逗号分隔） |
 | `/漫画 取消订阅 <ID或名称>` | 取消订阅指定漫画 |
 | `/漫画 我的订阅` | 查看当前会话的订阅列表 |
-| `/漫画 更新` | 手动触发更新检查（全局推送） |
+| `/漫画 更新` | 仅 SUPERUSER 手动触发全局更新 |
 | `/漫画 章节 <漫画名或ID> [--刷新]` | 查看章节列表，`--刷新` 强制从源拉取最新数据 |
 | `/漫画 阅读 <漫画名或ID> <章节号>` | 阅读指定章节（发送页面图片） |
 | `/漫画 下载 <漫画名或ID> <章节号> [格式]` | 下载章节并打包发送（格式: zip/pdf/cbz） |
 | `/漫画 推送 开/关/状态` | 控制自动推送（开记住偏好，新订阅自动继承；关清除偏好） |
 | `/漫画 帮助` | 显示完整用法说明 |
 
----
-
-## 🤖 工具
-
-启用 AstrBot Agent 后，以下 Tool 自动注册给 LLM 调用：
-
-| 工具 | 说明 |
-|---|---|
-| `suwayomi_search_manga` | 跨源搜索漫画，返回稳定 `manga_id`。支持按源名提示过滤，也可一次搜索全部已安装源 |
-| `suwayomi_get_chapters` | 查询漫画章节列表，支持 `latest`（最新章节）、`list`（最新 N 话）、章节号或 `ID:数字` 精确选择 |
-| `suwayomi_send_chapter` | 将已确认的章节发送到聊天。默认打包为 PDF，支持 ZIP/CBZ/图片；仅限用户明确要求阅读时调用 |
-| `suwayomi_subscribe_manga` | 订阅漫画更新通知，可选开启自动推送（`push_enabled`，不传时继承会话偏好）。已订阅时可升级或降级推送 |
-| `suwayomi_get_subscriptions` | 获取当前会话的订阅列表，含标题和 `push_enabled` 状态 |
-| `suwayomi_unsubscribe_manga` | 取消订阅指定漫画，已取消时返回友好提示 |
+重复编号章节可用 `ID:数字` 精确指定，如 `/漫画 阅读 一拳超人 ID:123`。
 
 ---
 
-## 💬 使用示例
+## 🔔 订阅推送说明
 
-### 基本流程
+订阅按 **会话** 记账（群聊以群为单位，私聊以用户为单位）。`/漫画 更新` 或
+后台检查发现新章节时：
 
-```
-用户: /漫画 搜索 一拳超人
-Bot:  🔍 搜索结果（3 条，按相关度排序）:
-        [1] 一拳超人 - 连载中（拷贝漫画）
-        [2] 一拳超人 重制版 - 连载中（动漫屋）
-      回复「漫画 订阅 <编号>」订阅，如「漫画 订阅 1」
+1. 所有订阅会话收到更新通知（卡片或文本）；
+2. 对开启「自动推送」的会话，进一步把新章节内容（图片或打包文件）直接发进会话。
 
-用户: /漫画 订阅 1
-Bot:  ✅ 已订阅「一拳超人」，有新章节时会推送。
-
-用户: /漫画 章节 一拳超人
-Bot:  📖「一拳超人」章节列表（共 200 话）:
-        ✅ #200 第200话
-        ✅ #199 第199话
-        ...
-
-> 章节列表的首条消息会附带漫画封面；可通过配置 `chapter_list_show_cover` 关闭。
-
-用户: /漫画 阅读 一拳超人 200
-Bot:  📖 正在加载「一拳超人」第 200 话，请稍后...
-      [图片] [图片] [图片] ...
-
-用户: /漫画 下载 一拳超人 199
-Bot:  ⏳ 正在下载「一拳超人」第 199 话，请稍候...
-      [文件: 一拳超人_第199话.zip]
-```
-
-### 批量订阅
-
-一次性订阅多部漫画，用逗号分隔名称：
-
-```
-用户: /漫画 批量订阅 咒术回战, 鬼灭之刃, 电锯人
-Bot:  📚 开始批量订阅 3 部漫画...
-      正在处理 [1/3] 咒术回战...
-      正在处理 [2/3] 鬼灭之刃...
-      正在处理 [3/3] 电锯人...
-      📚 批量订阅完成 (2 新增, 0 已存在, 1 失败):
-        ✅ 咒術廻戦 - 连载中 - 拷贝漫画 (ZH)
-        ✅ 鬼滅の刃 - 已完结 - 禁漫天堂 (JM)
-        ❌ 电锯人 - 未找到匹配结果
-```
-
-也可指定源：`/漫画 批量订阅 咒术回战, 鬼灭之刃 jm`
-
-### AI 自然语言搜索
-
-使用支持 Function Calling 的模型，并在 AstrBot WebUI 中启用本插件的 Tool 后，可以直接说：
-
-```text
-用户: 帮我找一下主角叫琦玉的漫画，最好是中文源，直接看最新一话
-Bot:  找到《一拳超人 重制版》和《一拳超人 原作版》，你想看哪个？
-用户: 重制版
-Bot:  [发送《一拳超人 重制版》最新章节 PDF]
-```
-
-Agent 会依次调用搜索、章节查询和阅读发送 Tool。存在多个版本或同号章节时会先询问，并始终使用稳定的漫画 ID / 章节 ID，不依赖容易串会话的搜索结果编号。默认打包发送 PDF。
+推送通过 OneBot v11 的 `send_group_msg` / `send_private_msg` /
+`upload_group_file` / `send_group_forward_msg` 完成；bot 需要在线，
+且会话内有发言权限。失败会话不推进发送进度，下次重试；已确认发送的会话
+不重复发送同批通知。进程在实际发送后、落盘前中断时仍可能重复，不能承诺恰好一次。
 
 ---
 
-## 🔔 更新推送
+## 🌐 Web 管理面板
 
-插件后台定时检查已订阅漫画的新章节（默认每 **60 分钟**），发现更新后自动推送到对应聊天会话：
-
-```
-📢「一拳超人」更新了！
-新增章节：#201 第201话, #202 第202话, #203 第203话
-发送「漫画 阅读 一拳超人 203」开始阅读
-```
-
-也可通过 `/漫画 更新` 命令手动触发检查（会全局推送，所有订阅该漫画的用户都会收到通知）。
-
-### 自动推送
-
-默认只发送文本通知。开启自动推送后，发现更新时会自动发送漫画内容。开启后会记住偏好，之后通过指令新订阅的漫画自动开启推送：
+启动 bot 后访问：
 
 ```
-用户: /漫画 推送 开
-Bot:  ✅ 已开启自动推送，共 3 部漫画。有更新时将自动推送内容。
-
-用户: /漫画 推送 状态
-Bot:  📡 自动推送状态:
-        • 一拳超人 — ✅ 开启
-        • 海贼王 — ✅ 开启
+http://<bot主机>:<端口>/suwayomi/
 ```
 
-推送模式通过 `auto_push_mode` 配置：`image` 直接发送图片，`file` 发送 ZIP/PDF/CBZ 文件包。
+端口为 NoneBot FastAPI 驱动的监听端口。必须先设置 `SUWAYOMI_DASHBOARD_TOKEN`，
+否则面板不注册。打开页面后填写令牌；令牌只存当前标签页的 sessionStorage，API
+通过 `Authorization: Bearer ...` 校验。不要把令牌写进 URL。静态页面可公开读取，
+管理数据与操作均需认证。建议仅通过本地连接、SSH 隧道或 HTTPS 管理。
+
+面板提供：连接状态总览、订阅管理（删除订阅 / 切换推送）、配置编辑、
+手动更新检查。
 
 ---
 
-## 📦 安装
+## 🖼️ 卡片渲染
 
-### 前置要求
+- **system**（默认）：使用 [`nonebot-plugin-htmlrender`](https://github.com/kexue-z/nonebot-plugin-htmlrender)
+  本地渲染 HTML 卡片，需要 Playwright 浏览器（`playwright install chromium`）。
+  未安装时自动回退纯文本。
+- **custom**：调用自建 T2I 服务（astrbot-t2i-service 兼容的
+  `/text2img` + `/generate` 协议），适合无浏览器环境。
 
-- Python 3.12+
-- AstrBot >= 4.16
-- 已部署并运行的 [Suwayomi-Server](https://github.com/Suwayomi/Suwayomi-Server)
-- Suwayomi 中已安装至少一个漫画源扩展
+渲染失败或超时会自动回退纯文本，并进入冷却期避免反复等待。
 
-### 安装步骤
+---
 
-**方式一：Git 克隆**
+## 🗃️ 数据目录
+
+```
+data/suwayomi/
+├── kv.json        # 订阅、章节缓存时间戳、上次检查时间
+├── config.json    # Web 面板保存的运行时配置，可能包含密码，0600
+└── cache/         # 下载、打包与渲染临时文件，自动延迟清理
+```
+
+相对数据路径基于 Bot 的启动目录；`SUWAYOMI_TEMP_DIR` 为空时使用 `cache/`，
+相对临时路径基于数据目录。图片以字节发送，QQ 网关无需读取 Bot 的本地图片路径；
+文件上传仍要求网关与 Bot 共享数据目录并使用相同的绝对路径。
+
+从 AstrBot 迁移时可导入 KV 结构，但必须将旧会话地址映射为
+`OneBot V11|机器人QQ|group:群号` 或 `OneBot V11|机器人QQ|private:QQ号`；
+不能直接沿用 AstrBot unified_msg_origin。损坏 JSON 会报错并保留原件，修复后再启动。
+
+---
+
+## 🆚 与 AstrBot 版的差异
+
+- **适配平台**：AstrBot 版支持 8 个平台；本版针对 NoneBot2 生态，
+  消息收发基于 **OneBot v11**（NapCat / go-cqhttp / LLOneBot）。其他适配器
+  下文本类命令可用，图片/文件推送暂不支持。
+- **Agent 工具**：AstrBot 的 LLM FunctionTool 注册在 NoneBot2 中无对应
+  设施，AI 漫画工具（`suwayomi_search_manga` 等）未移植。
+- **配置体系**：`_conf_schema.json` → `.env`（`SUWAYOMI_*`）+ Web 面板
+  运行时配置（`config.json`）。
+- **WebUI**：AstrBot WebUI 内嵌面板 → 独立 FastAPI 面板（`/suwayomi/`）。
+- **卡片渲染**：AstrBot 系统 T2I → `nonebot-plugin-htmlrender` 或自建 T2I。
+
+---
+
+## 🧪 开发与测试
 
 ```bash
-cd AstrBot/data/plugins
-git clone https://github.com/FFFold/astrbot_plugin_suwayomi_server.git astrbot_suwayomi_server
-uv pip install -r astrbot_suwayomi_server/requirements.txt
+python -m pip install -e ".[test]"
+python -m pytest -q      # 包含真实 NoneBot 加载与发送/持久化边界回归
 ```
 
-**方式二：AstrBot WebUI（推荐）**
-
-在 AstrBot 管理面板的插件市场中搜索并安装。
-
-> 安装完成后在 AstrBot WebUI 中启用插件并完成配置即可使用。
+联机集成测试默认跳过。显式设置 `SUWAYOMI_LIVE_TESTS=1`、`SUWAYOMI_URL`，
+并按需提供认证变量后运行 `tests/test_live_*.py`，它们会访问并可能修改测试书库。
+开发说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ---
 
-## ⚙️ 配置
+## License
 
-在 AstrBot WebUI 的插件设置页面中配置。配置项按功能分组（与 WebUI 设置页、`_conf_schema.json` 一致）。
-
-### 服务器连接
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `server_url` | string | `http://localhost:4567` | Suwayomi-Server 地址 |
-| `auth_mode` | string | `none` | 认证模式：`none` / `basic` / `jwt` |
-| `username` | string | `""` | 认证用户名（basic / jwt 模式） |
-| `password` | string | `""` | 认证密码（basic / jwt 模式） |
-
-### 卡片渲染
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `result_cards_enabled` | bool | `false` | 指令结果卡片渲染：搜索/订阅确认/批量订阅/我的订阅/更新通知/章节列表通过 T2I 服务渲染为带封面的卡片；其中章节列表、订阅确认、更新通知卡片会展示漫画简介；关闭或渲染失败时回退纯文本 |
-| `card_render_timeout_sec` | int | `30` | 单张卡片渲染超时（5-120 秒），超时自动回退纯文本；T2I 服务不可用时命令会等待该时长后回退，且之后 5 分钟内不再尝试渲染 |
-| `t2i_source` | string | `system` | T2I 服务来源：`system`（使用 AstrBot 系统 T2I 配置，默认）/ `custom`（单独配置，仅本插件使用下面的端点） |
-| `t2i_endpoint` | string | `""` | 仅 `t2i_source=custom` 时生效：自建 astrbot-t2i-service 地址，如 `http://192.168.1.100:8999`（末尾无需 `/text2img`，插件自动补全）；留空则回退系统配置并打印警告 |
-
-> 💡 **卡片渲染**：插件默认以纯文本回复。如需将指令结果渲染为带封面的精美卡片（章节列表、订阅确认、更新通知卡片会同时展示漫画简介），在 WebUI 插件设置中将 `result_cards_enabled` 开启即可。默认使用 AstrBot 系统 T2I 配置；AstrBot 框架默认指向**国外官方端点**（速度慢、失败率高），建议自建本地服务并改全局端点或按下方 `t2i_source` 单独配置，详见 [docs/setup.md](docs/setup.md#可选优化-t2i-卡片渲染服务)。T2I 服务不可用时所有命令自动回退纯文本，不会报错。
-
-### 阅读体验
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `max_pages` | int | `30` | 单次阅读最大发送页数 |
-| `send_mode` | string | `image` | 发图模式：`image`（逐张发送）/ `forward`（合并转发，仅 QQ） |
-| `image_fetch_mode` | string | `download` | 图源获取：`url`（直接引用，不兼容认证服务器）/ `download`（先下载到本地） |
-
-### 下载打包
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `download_format` | string | `pdf` | 下载打包格式：`zip` / `pdf` / `cbz` |
-| `download_concurrency` | int | `6` | 并行下载图片数（仅 `download` 模式） |
-| `download_retries` | int | `3` | 图片下载失败重试次数（指数退避） |
-| `file_delivery_max_pages` | int | `300` | 下载/推送打包为文件时的单章页数上限（防恶意源超大页列表）；「第一卷」这类整卷/合集章节可合法超过 300 页，推送被截断时按需调大 |
-
-### 自动推送
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `auto_push_mode` | string | `image` | 自动推送模式：`image`（图片）/ `file`（文件） |
-
-### AI 漫画工具
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `enable_ai_tools` | bool | `true` | 注册搜索、章节查询和阅读发送 Tool；关闭后不影响传统 `/漫画` 命令 |
-| `allow_ai_send` | bool | `true` | 允许 Agent 在用户明确要求阅读时发送章节文件或图片 |
-| `ai_max_sources` | int | `5` | 单次 AI 搜索最多查询的漫画源数（1-10） |
-| `ai_results_per_source` | int | `5` | 每个漫画源最多返回的候选数（1-20） |
-| `ai_tool_timeout_sec` | int | `60` | 插件内部的搜索、章节查询或发送超时（10-300 秒）；运行时会自动限制在 AstrBot 工具调用超时以内并预留回传时间 |
-
-### 高级
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `check_interval` | int | `60` | 更新检查间隔（分钟） |
-| `chapter_cache_hours` | int | `6` | 章节缓存时长（小时）。`0` = 不自动刷新，`-1` = 总是从源刷新 |
-| `chapter_list_show_cover` | bool | `true` | 「漫画 章节」列表顶部是否显示漫画封面；关闭后该命令不使用卡片渲染（回退纯文本） |
-| `default_source_id` | int | `0` | 默认搜索源 ID，`0` 搜索全部已安装源 |
-| `search_result_ranking` | bool | `true` | 搜索结果跨源按标题相关度排序（相等 > 包含 > 简称子序列 > 部分重叠），同分保持源顺序；关闭恢复按源分组的旧格式 |
-| `search_alias_expansion` | bool | `true` | 关键词无强命中时通过 Bangumi 解析官方译名/别名并换名重搜（简称「我推恶役」、跨译名「海贼王/航海王」），解析成功时别名也会参与首轮相关度排序增强；需可访问 api.bgm.tv |
-| `search_refresh_truncated_titles` | bool | `true` | 搜索标题以 `...` 结尾时自动从源站详情页刷新为完整标题（需同时开启 `search_result_ranking`，关闭排序时完整恢复旧版行为） |
-| `bangumi_mirror` | bool | `false` | 网络受限环境启用 Bangumi 镜像回退：填写了下方自定义镜像时仅使用自定义镜像；留空时按序尝试内置公共镜像（api.bangumi.vip / bgmapi.anibt.net），全部失败则回退不使用别名扩展。关闭时仅直连官方 api.bgm.tv |
-| `bangumi_mirror_url` | string | `""` | 自定义 Bangumi API 镜像根地址，留空用内置公共镜像；需同时开启 `bangumi_mirror` 与 `search_alias_expansion`（后者依赖相关度排序） |
-| `search_display_limit` | int | `20` | 开启相关度排序后最多显示的搜索结果条数；超过显示上限的结果无法通过编号订阅，可调大（≤50）或用「搜索 关键词 源名」锁定单源 |
-| `temp_dir` | string | `""` | 临时文件目录。留空用系统默认，Docker 环境设置共享目录如 `/AstrBot/data/temp` |
-
-### 认证模式说明
-
-| 模式 | 说明 |
-|---|---|
-| `none` | Suwayomi-Server 未开启认证（默认） |
-| `basic` | HTTP Basic 认证 |
-| `jwt` | JWT 令牌认证（Suwayomi UI_LOGIN 模式） |
-
-### 发图模式说明
-
-| 模式 | 说明 |
-|---|---|
-| `image` | 将章节页面作为独立图片逐张发送，通用性强，支持所有平台 |
-| `forward` | 使用合并转发消息发送章节页面，仅 aiocqhttp / QQ 平台支持，其他平台自动回退为 `image` |
-
-### 图片获取方式
-
-| 方式 | 说明 |
-|---|---|
-| `download` | 先下载到本地临时文件再发送，更可靠，发送后 60 秒自动清理（**推荐**） |
-| `url` | 直接引用 Suwayomi 图片 URL，速度快但**不兼容**带认证的 Suwayomi 服务器 |
-
-> 当 Suwayomi 开启了 Basic 或 JWT 认证时，**必须使用 `download` 模式**，否则 AstrBot Core 下载图片时会因无认证信息而失败（HTTP 401）。
-
-## 📚 文档
-
-| 文档 | 说明 |
-|---|---|
-| [Suwayomi-Server 配置教程](docs/setup.md) | Docker 部署、漫画源安装、插件配置 |
-| [开发指南](docs/dev/development.md) | 架构详解、设计决策、数据流 |
-| [Suwayomi API 参考](docs/dev/suwayomi-api.md) | GraphQL API 文档 |
-| [贡献指南](CONTRIBUTING.md) | 开发环境搭建、提交规范 |
-| [变更日志](CHANGELOG.md) | 版本更新记录 |
-
----
-
-## 📄 许可证
-
-[AGPL-3.0](LICENSE) © Fold
-
----
-
-<p align="center">
-  <sub>由 <a href="https://github.com/Suwayomi/Suwayomi-Server">Suwayomi-Server</a> 提供漫画数据支持 · 为 <a href="https://github.com/Soulter/AstrBot">AstrBot</a> 量身打造</sub>
-</p>
+[AGPL-3.0](LICENSE)

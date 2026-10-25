@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 
-from suwayomi.config import (
+from plugin_pkg.suwayomi.config import (
     CONFIG_GROUPS,
     _LEGACY_KEY_DEFAULTS,
     flatten_config,
@@ -12,36 +12,21 @@ from suwayomi.config import (
 )
 
 
-def _schema() -> dict:
-    return json.loads(
-        (Path(__file__).resolve().parent.parent / "_conf_schema.json").read_text(
-            encoding="utf-8"
-        )
-    )
+def test_legacy_defaults_match_plugin_settings():
+    """_LEGACY_KEY_DEFAULTS 与 NoneBot 设置默认值（settings.CONFIG_DEFAULTS）同步。
 
-
-def test_legacy_defaults_match_schema():
-    """_LEGACY_KEY_DEFAULTS must stay in sync with the schema, in both directions.
-
-    If they diverge, Core-refilled defaults would be mistaken for real user
-    values and clobber grouped config during migration.
+    若两者漂移，用户手改的旧键可能被默认值覆盖，或运行时配置出现意外值。
+    （NoneBot 版不移植 AI 分组，比较时排除 ai 键。）
     """
-    schema = _schema()
-    for key, default in _LEGACY_KEY_DEFAULTS.items():
-        entry = schema[key]
-        assert entry.get("invisible") is True, f"{key} must be invisible"
-        assert entry.get("default") == default, f"{key} default mismatch"
-    invisible_keys = {k for k, v in schema.items() if v.get("invisible")}
-    assert invisible_keys == set(_LEGACY_KEY_DEFAULTS), (
-        "invisible schema keys must match _LEGACY_KEY_DEFAULTS exactly"
-    )
-    for group, keys in CONFIG_GROUPS.items():
-        items = schema[group]["items"]
-        assert set(items) == set(keys), f"{group} items drift"
-        for key in keys:
-            assert items[key].get("default") == _LEGACY_KEY_DEFAULTS[key], (
-                f"{group}.{key} default mismatch"
-            )
+    from plugin_pkg.settings import CONFIG_DEFAULTS
+
+    ai_keys = set(CONFIG_GROUPS.get("ai", []))
+    legacy = {k: v for k, v in _LEGACY_KEY_DEFAULTS.items() if k not in ai_keys}
+    assert legacy == CONFIG_DEFAULTS
+    # 所有配置键都应有分组归属（含未移植的 ai 组）
+    assert set(_LEGACY_KEY_DEFAULTS) == {
+        key for keys in CONFIG_GROUPS.values() for key in keys
+    }
 
 
 def test_group_layout_covers_all_keys():

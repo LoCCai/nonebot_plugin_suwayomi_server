@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from utils.pack import (
+from plugin_pkg.utils.pack import (
     pack_zip,
     pack_cbz,
     pack_pdf,

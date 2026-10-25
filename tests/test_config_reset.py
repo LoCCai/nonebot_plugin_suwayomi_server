@@ -2,12 +2,13 @@
 import time
 from unittest.mock import AsyncMock, MagicMock
 
-from plugin_pkg.main import SuwayomiPlugin
+from plugin_pkg.core import SuwayomiCore
+from tests.fake_ctx import FakeCtx
 from plugin_pkg.suwayomi.cards import CardCache
 
 
 def _plugin(cards_enabled=True):
-    plugin = SuwayomiPlugin.__new__(SuwayomiPlugin)
+    plugin = SuwayomiCore.__new__(SuwayomiCore)
     plugin.config = {
         "cards": {
             "result_cards_enabled": cards_enabled,

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-25
+
+### Changed
+
+- Port AstrBot v0.7.1 commands, subscriptions, downloads and dashboard to NoneBot2 / OneBot v11.
+- Standard single-package layout, wheel packaging, NoneBot configuration and lifecycle hooks.
+- Runtime state and download/render cache live below the configured data directory.
+
+### Fixed
+
+- Send local image bytes to remote QQ gateways; preserve source text as literal text.
+- Reject offline or invalid delivery targets and retain failed-recipient progress for retry.
+- Disable dashboard without a token; require Bearer auth for every management API.
+- Persist JSON privately with atomic replacement; reject corrupt state instead of overwriting it.
+- Cancel the old update loop before rebuilding its client; restrict global update to superusers.
+
+### Added
+
+- Pinned Suwayomi Compose example with local-only port, authentication and persistent volume.
+- Regression coverage for deployment boundaries and real NoneBot plugin loading; NoneBot CI.
+
 ## [0.7.1] - 2026-10-17
 
 ### Fixed

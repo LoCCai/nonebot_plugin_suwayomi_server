@@ -11,15 +11,15 @@ import os
 from pathlib import Path
 
 import pytest
-from suwayomi.cards import CARD_WIDTH, build_search_card, render_card
-from suwayomi.t2i import make_endpoint_renderer, normalize_endpoint
+from plugin_pkg.suwayomi.cards import CARD_WIDTH, build_search_card, render_card
+from plugin_pkg.suwayomi.t2i import make_endpoint_renderer, normalize_endpoint
 
 from tests.helpers import t2i_reachable_sync  # noqa: E402
 
 ENDPOINT = os.environ.get("T2I_ENDPOINT", "http://100.87.49.15:9105/")
 
 pytestmark = pytest.mark.skipif(
-    not t2i_reachable_sync(ENDPOINT),
+    os.environ.get("SUWAYOMI_LIVE_TESTS") != "1" or not t2i_reachable_sync(ENDPOINT),
     reason="独立 T2I 服务不可达，跳过集成测试（可用 T2I_ENDPOINT 指定地址）",
 )
 
