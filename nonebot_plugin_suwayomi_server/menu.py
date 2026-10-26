@@ -73,7 +73,10 @@ def build_menu_data() -> list[dict]:
         "trigger_condition": "仅 NoneBot 超级管理员" if key == "update" else "群聊与私聊用户；沿用原生权限校验",
         "brief_des": summary,
         "detail_des": detail,
-        "pmn_triggers": [{"type": "command", "label": "命令", "value": f"/漫画 {body}"}],
+        "pmn_triggers": [
+            {"type": "command", "label": "命令" if head == "漫画" else "命令别名", "value": f"/{head} {body}"}
+            for head in ("漫画", "漫画助手", "manga")
+        ],
         "pmn_llm_intents": list(intents),
         "qweb": {"key": key, "slug": f"suwayomi-{key}", "sort_order": index * 10},
     } for index, (key, title, body, summary, detail, intents) in enumerate(COMMANDS, 1)]
@@ -83,7 +86,7 @@ def metadata_extra() -> dict:
     return {
         "author": ["LoCCai", "FFFold (AstrBot upstream)"], "version": VERSION,
         "menu_data": build_menu_data(),
-        "pmn": {"markdown": True, "sort_order": 150, "menu_group": dict(MENU_GROUP)},
+        "pmn": {"markdown": True, "sort_order": 151, "menu_group": dict(MENU_GROUP)},
         "qweb": {
             "catalog_provider": True, "key": "suwayomi", "slug": "suwayomi",
             "framework": "nonebot", "audience": "群聊与私聊用户；管理操作按原生权限校验",

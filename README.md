@@ -19,7 +19,7 @@
 
 基于强大的 [Suwayomi-Server](https://github.com/Suwayomi/Suwayomi-Server) 后端，为聊天平台提供漫画搜索、在线阅读、批量下载和订阅更新推送服务。
 
-> 🚀 **首次使用？** 先按 [Suwayomi-Server 部署教程](https://github.com/Suwayomi/Suwayomi-Server) 起好服务并安装漫画源扩展。
+> 🚀 **首次使用？** 请按本项目的[中文首次部署与配置教程](docs/setup.md)操作：部署后端 → [安装漫画源扩展](docs/setup.md#第二步安装漫画源扩展) → 配置 NoneBot2 → 验证。
 
 本插件移植自 AstrBot 插件
 [FFFold/astrbot_plugin_suwayomi_server](https://github.com/FFFold/astrbot_plugin_suwayomi_server)，
@@ -100,7 +100,7 @@ Bot 也在 Docker 中时，给服务接入 Bot 的既有网络，并用
 | `SUWAYOMI_IMAGE_FETCH_MODE` | `download` | 图片获取：`download` 下载后发 / `url` 直接引用 URL |
 | `SUWAYOMI_DOWNLOAD_FORMAT` | `pdf` | 下载打包默认格式：`zip` / `pdf` / `cbz` |
 | `SUWAYOMI_CHECK_INTERVAL` | `60` | 更新检查间隔（分钟） |
-| `SUWAYOMI_CHAPTER_CACHE_HOURS` | `6` | 章节缓存时长（小时，`-1` 永久缓存，`0` 不缓存） |
+| `SUWAYOMI_CHAPTER_CACHE_HOURS` | `6` | 章节刷新间隔（小时，`-1` 每次从源刷新，`0` 不按时间自动刷新；无章节时仍会拉取） |
 | `SUWAYOMI_AUTO_PUSH_MODE` | `image` | 自动推送内容：`image` 图片 / `file` 打包文件 |
 | `SUWAYOMI_DATA_DIR` | `data/suwayomi` | 数据目录（订阅 KV、运行时配置） |
 | `SUWAYOMI_DASHBOARD_TOKEN` | 空 | Web 管理 API 的 Bearer 令牌；留空禁用面板 |

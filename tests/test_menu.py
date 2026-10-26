@@ -1,3 +1,6 @@
+import ast
+from pathlib import Path
+
 from plugin_pkg.menu import COMMANDS, VERSION, build_menu_data, format_help, metadata_extra
 
 
@@ -20,6 +23,27 @@ def test_catalog_callers_receive_detached_metadata():
     second = metadata_extra()
     assert second["menu_data"][0]["func"] == "漫画帮助"
     assert second["pmn"]["menu_group"]["key"] == "entertainment"
+
+
+def test_typed_menu_triggers_cover_native_command_aliases():
+    handlers = Path(__file__).parents[1] / "nonebot_plugin_suwayomi_server" / "handlers.py"
+    tree = ast.parse(handlers.read_text(encoding="utf-8"))
+    registration = next(
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "on_command"
+        and node.args
+        and isinstance(node.args[0], ast.Constant)
+        and node.args[0].value == "漫画"
+    )
+    aliases = next(value.value for value in registration.keywords if value.arg == "aliases")
+    heads = {ast.literal_eval(registration.args[0]), *ast.literal_eval(aliases)}
+    for row, (_, _, body, _, _, _) in zip(build_menu_data(), COMMANDS):
+        assert {trigger["value"] for trigger in row["pmn_triggers"]} == {
+            f"/{head} {body}" for head in heads
+        }
+        assert all(trigger["type"] == "command" for trigger in row["pmn_triggers"])
 
 
 def test_administrative_and_subscription_effects_are_explicit():
