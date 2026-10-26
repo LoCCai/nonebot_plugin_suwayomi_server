@@ -91,6 +91,22 @@ Suwayomi 本身不提供漫画源。这里有三个不同的东西：**扩展库
 4. 打开漫画源，完成它要求的账号登录或其他源设置。
 5. **先在 WebUI 中搜索一部作品，打开章节确认能看到图片。** 这一步正常后，再配置机器人。
 
+中文用户可以按下面的名称查找：
+
+| 漫画源 | 扩展库与搜索名称 | 使用前检查 |
+| --- | --- | --- |
+| 拷贝漫画 | [LittleSurvival 维护版](https://github.com/LittleSurvival/copymanga-copy20)，扩展名 `CopyManga` | 维护者明确支持 Suwayomi；不一定收录于 Keiyoushi，需要另加下方扩展库 |
+| 再漫画 | Keiyoushi，扩展名 `Zaimanhua` | 搜索成功后仍需验证章节图片；部分内容可能要求源站账号或等级 |
+| Komiic | Keiyoushi，扩展名 `Komiic` | 确认后端所在服务器能连接源站；安装成功不代表网络已连通 |
+
+使用拷贝漫画时，在「扩展库」中额外添加以下地址，再刷新扩展列表并安装 `CopyManga`。此地址已在本教程固定的 Suwayomi `v2.4.2366` 上验证：
+
+```text
+https://raw.githubusercontent.com/LittleSurvival/copymanga-copy20/repo/repo.json
+```
+
+保留原有扩展库即可，不需要卸载其他源。扩展的后续地址与版本以维护者说明为准。
+
 扩展、网站和源名称会变化，以当前列表为准。安装扩展不等于网站一定可用；源能列出但搜索或图片失败时，先在后端排查该源。
 
 ### 3. 没有看到漫画源时
