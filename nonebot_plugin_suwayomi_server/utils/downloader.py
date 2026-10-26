@@ -182,11 +182,18 @@ async def download_images(
     tmp_dir = Path(tempfile.mkdtemp(prefix="suwayomi_", dir=custom_tmp or None))
     try:
         connector = aiohttp.TCPConnector(limit=concurrency)
+        slots = asyncio.Semaphore(max(1, concurrency))
         # headers 逐请求传递（不设 session 级）：跨 origin 跳转由
         # _open_without_ssrf_redirect 丢弃，避免重定向时泄露认证头
         async with aiohttp.ClientSession(connector=connector) as session:
+            async def download_page(index: int, url: str) -> bool:
+                # Start each HTTP timeout only when its concurrency slot is
+                # available; connector-queued pages must not expire together.
+                async with slots:
+                    return await download_one(session, url, tmp_dir / f"{index:04d}.jpg", retries, headers)
+
             tasks = [
-                download_one(session, url, tmp_dir / f"{i:04d}.jpg", retries, headers)
+                download_page(i, url)
                 for i, url in enumerate(urls)
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)

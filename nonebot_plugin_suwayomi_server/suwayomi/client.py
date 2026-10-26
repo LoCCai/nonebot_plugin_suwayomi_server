@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import re
 import time
 from typing import Any
 
@@ -17,7 +18,21 @@ _PLUGIN_NAME = PLUGIN_NAME
 
 
 class SuwayomiError(Exception):
-    pass
+    def __init__(self, message: str):
+        # The backend includes Java stack traces in GraphQL error messages.
+        # Keep the detail for diagnostics, never forward it verbatim to QQ.
+        self.detail = str(message)
+        if "用户权限不足" in self.detail or "用戶權限不足" in self.detail:
+            summary = (
+                "漫画源站限制了该章节的读取，账号权限或等级不足。"
+                "请管理员在 Suwayomi 对应漫画源的设置中登录并核对源站权限，"
+                "或重新搜索后选择其他源。这与七七的 VIP、群订阅权限无关。"
+            )
+        else:
+            summary = self.detail.strip().splitlines()[0] if self.detail.strip() else "漫画服务请求失败"
+            summary = re.sub(r"^Exception while fetching data \([^\n]*?\)\s*:\s*", "", summary)
+            summary = re.sub(r"[\x00-\x1f\x7f\u2028\u2029]", " ", summary)[:280]
+        super().__init__(summary)
 
 
 _SOURCES_CACHE_TTL = 60

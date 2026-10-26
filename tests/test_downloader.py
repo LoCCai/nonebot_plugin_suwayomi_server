@@ -1,5 +1,6 @@
 """Tests for utils/downloader.py (no network)."""
 from pathlib import Path
+import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -13,6 +14,30 @@ from plugin_pkg.utils.downloader import (
     get_file_delivery_max_pages,
     resolve_image_url,
 )
+
+
+@pytest.mark.asyncio
+async def test_page_downloads_start_only_when_a_slot_is_available(tmp_path, monkeypatch):
+    active = peak = 0
+    started = []
+
+    async def slow_download(session, url, dest, retries=3, headers=None):
+        nonlocal active, peak
+        active += 1
+        peak = max(peak, active)
+        started.append(url)
+        try:
+            await asyncio.sleep(0.005)
+            dest.write_bytes(b"fixture")
+            return True
+        finally:
+            active -= 1
+
+    monkeypatch.setattr("plugin_pkg.utils.downloader.download_one", slow_download)
+    urls = [f"http://example.test/page/{i}" for i in range(9)]
+    paths, _ = await download_images(urls, concurrency=2, custom_tmp=str(tmp_path), retries=1)
+    assert peak == 2 and active == 0
+    assert started == urls and all(paths) and len(paths) == 9
 
 
 @pytest.mark.asyncio

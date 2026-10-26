@@ -4,6 +4,7 @@ import asyncio
 import math
 import re
 import time
+from difflib import SequenceMatcher
 from typing import TYPE_CHECKING, Any, Callable
 
 import opencc
@@ -14,7 +15,7 @@ from . import PLUGIN_NAME
 from .config import get_config_value
 from .client import SuwayomiError
 from .models import Chapter, Manga, Source
-from .ranking import looks_truncated, rank_items
+from .ranking import looks_truncated, normalize_for_rank, rank_items
 
 if TYPE_CHECKING:
     from ..utils.subscription import SubscriptionManager
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
 _PLUGIN_NAME = PLUGIN_NAME
 
 _t2s = opencc.OpenCC("t2s")
+_s2t = opencc.OpenCC("s2t")
 
 STATUS_EMOJI: dict[str, str] = {
     "ONGOING": "连载中",
@@ -38,7 +40,15 @@ KV_CHAPTER_TS = "suwayomi_chapter_timestamps"
 
 _ts_lock = asyncio.Lock()
 
-_CHAPTER_NUM_SUFFIX_RE = re.compile(r"(?:话|話|章)$")
+_CHAPTER_NUM_SUFFIX_RE = re.compile(r"(?:话|話|章|卷|册|冊)$")
+_CHAPTER_UNIT_RE = re.compile(r"第?\s*\d+(?:\.\d+)?\s*(话|話|章|卷|册|冊)")
+
+
+def _chapter_unit(text: str) -> str:
+    match = _CHAPTER_UNIT_RE.search(str(text or ""))
+    if not match:
+        return ""
+    return "volume" if match[1] in {"卷", "册", "冊"} else "chapter"
 
 
 def parse_chapter_number_text(text: str) -> float | None:
@@ -137,7 +147,8 @@ def find_chapter_by_id(chapters: list[Chapter], chapter_id: int) -> Chapter | No
 
 
 def resolve_chapter(
-    chapters: list[Chapter], chapter_num: str, manga_name_or_id: str, cmd: str
+    chapters: list[Chapter], chapter_num: str, manga_name_or_id: str, cmd: str,
+    format_hint: str = "",
 ) -> tuple[Chapter | None, str | None]:
     norm = chapter_num.replace("：", ":").lower()
     if norm.startswith("id:"):
@@ -153,15 +164,22 @@ def resolve_chapter(
     if chapter_num_f is None:
         return None, "章节号无效。示例: 1, 38.5, 第5话 或 ID:123"
     matches = find_chapters_by_num(chapters, chapter_num_f)
+    unit = _chapter_unit(chapter_num)
+    if unit and any(_chapter_unit(ch.name) for ch in matches):
+        matches = [ch for ch in matches if _chapter_unit(ch.name) == unit]
     if len(matches) == 0:
         return None, f"未找到第 {fmt_chapter_num(chapter_num_f)} 话。"
     if len(matches) == 1:
         return matches[0], None
-    ids = " 或 ".join(f"ID:{m.id}" for m in matches)
-    return None, (
-        f"第 {chapter_num} 话存在多个章节（可能为附录/番外），"
-        f"请使用 ID 指定: /漫画 {cmd} {manga_name_or_id} {ids}"
-    )
+    suffix = f" {format_hint}" if format_hint in {"pdf", "zip", "cbz"} else ""
+    safe_name = sanitize_for_message(manga_name_or_id, limit=100)
+    lines = [f"编号 {fmt_chapter_num(chapter_num_f)} 对应多个条目，请选择卷或话："]
+    for chapter in matches[:10]:
+        lines.append(f"{fmt_chapter_display(chapter)}（ID:{chapter.id}）\n/漫画 {cmd} {safe_name} ID:{chapter.id}{suffix}")
+    if len(matches) > 10:
+        lines.append(f"还有 {len(matches) - 10} 项，请用 /漫画 章节 {safe_name} 查看完整目录。")
+    lines.append("也可直接指定第1话、第1卷等；ID:数字是章节 ID，纯数字是章节号。")
+    return None, "\n".join(lines)
 
 
 def split_search_query(message_str: str, keyword: str) -> tuple[str, str]:
@@ -397,22 +415,62 @@ async def resolve_manga(
     except (ValueError, SuwayomiError):
         pass
 
-    norm_input = normalize_zh(name_or_id)
+    norm_input = normalize_for_rank(name_or_id)
+    if not norm_input:
+        return None, "请提供漫画名称或漫画 ID。"
     subs = await sub_mgr.get_subscriptions(umo)
-    for s in subs:
-        if norm_input in normalize_zh(s["title"]):
-            try:
-                manga = await client.get_manga(s["manga_id"])
-                return manga, None
-            except SuwayomiError:
-                continue
-
     try:
-        mangas = await client.search_manga_by_title(name_or_id)
-        if len(mangas) == 0:
-            return None, "未找到该漫画。"
-        if len(mangas) == 1:
-            return mangas[0], None
+        candidates: dict[int, Manga] = {}
+        for sub in subs:
+            title = normalize_for_rank(sub["title"])
+            similarity = SequenceMatcher(None, norm_input, title).ratio()
+            if norm_input in title or (min(len(norm_input), len(title)) >= 4 and similarity >= 0.8):
+                try:
+                    manga = await client.get_manga(sub["manga_id"])
+                    candidates[manga.id] = manga
+                except SuwayomiError:
+                    continue
+
+        # Query normalized spellings too: backend title includes is literal and
+        # otherwise misses simplified queries against traditional source titles.
+        for title in dict.fromkeys([name_or_id, normalize_zh(name_or_id), _s2t.convert(name_or_id)]):
+            for manga in await client.search_manga_by_title(title):
+                candidates[manga.id] = manga
+        mangas = list(candidates.values())
+        exact = [m for m in mangas if normalize_for_rank(m.title) == norm_input]
+        contained = [m for m in mangas if norm_input in normalize_for_rank(m.title)]
+        matches = exact or contained
+        if len(matches) == 1:
+            return matches[0], None
+        if matches:
+            mangas = matches
+        elif not mangas:
+            # The backend cache is not the source catalog. Search a bounded
+            # set of installed sources before declaring that no title matches.
+            sources = select_search_sources(await client.get_sources(), "", 0, max_sources=5)
+
+            async def search_source(source: Source) -> list[Manga]:
+                try:
+                    result = await asyncio.wait_for(client.search_manga(source.id, name_or_id), timeout=12)
+                    return result.mangas
+                except (SuwayomiError, asyncio.TimeoutError):
+                    return []
+
+            for batch in await asyncio.gather(*(search_source(source) for source in sources)):
+                for manga in batch:
+                    title = normalize_for_rank(manga.title)
+                    if norm_input in title or SequenceMatcher(None, norm_input, title).ratio() >= 0.8:
+                        candidates[manga.id] = manga
+            mangas = list(candidates.values())
+            exact = [m for m in mangas if normalize_for_rank(m.title) == norm_input]
+            if len(exact) == 1:
+                return exact[0], None
+            if exact:
+                mangas = exact
+        if not mangas:
+            safe_name = sanitize_for_message(name_or_id, limit=100)
+            return None, (f"暂未找到匹配的作品，部分源可能不可用。请先搜索并使用结果中的漫画 ID：\n"
+                          f"/漫画 搜索 {safe_name}\n例如 /漫画 {cmd} <漫画ID>" + (" 1" if cmd in {"下载", "阅读"} else ""))
 
         src_map: dict[str, str] = {}
         try:
@@ -424,13 +482,16 @@ async def resolve_manga(
         except Exception as exc:
             logger.debug(f"[{_PLUGIN_NAME}] 多结果引导获取源名失败: {exc}")
 
-        lines = [f"找到多个结果，请使用 ID 指定。例如: /漫画 {cmd} {mangas[0].id}"]
-        for m in mangas:
+        heading = "找到多个结果" if matches or exact else "名称可能与源站不同，找到以下相近作品"
+        lines = [heading + "，请核对漫画 ID："]
+        for m in mangas[:10]:
             status = STATUS_EMOJI.get(m.status, "未知")
             src_name = src_map.get(str(m.source_id), f"源{m.source_id}")
             lines.append(
                 f"  ID {m.id}: {sanitize_for_message(m.title, limit=80)} [{status}] ({src_name})"
             )
+            suffix = " 1" if cmd in {"下载", "阅读"} else ""
+            lines.append(f"/漫画 {cmd} {m.id}{suffix}")
         return None, "\n".join(lines)
     except Exception as e:
         logger.error(f"[{_PLUGIN_NAME}] resolve_manga error: {e}")

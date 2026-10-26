@@ -258,7 +258,7 @@ async def push_chapter_file(
     fmt = get_config_value(config, "download_format", "pdf")
 
     # 文件推送意图是整章打包，但仍设页数上限：恶意源可宣告超大页列表
-    _, page_urls, local_paths, tmp_dir = await fetch_pages_local_fn(
+    total_pages, page_urls, local_paths, tmp_dir = await fetch_pages_local_fn(
         chapter.id, get_file_delivery_max_pages(config)
     )
     if not page_urls:
@@ -269,6 +269,11 @@ async def push_chapter_file(
     valid_paths = [p for p in local_paths if p]
     if not valid_paths:
         logger.debug(f"[{_PLUGIN_NAME}] 文件推送 {ch_label}：所有页面下载失败，跳过")
+        schedule_cleanup(tmp_dir, delay=120)
+        return False
+
+    if total_pages > len(page_urls) or len(valid_paths) < len(page_urls):
+        logger.warning(f"[{_PLUGIN_NAME}] 文件推送 {ch_label}：页面不完整，保留待重试，不推送残缺文件")
         schedule_cleanup(tmp_dir, delay=120)
         return False
 

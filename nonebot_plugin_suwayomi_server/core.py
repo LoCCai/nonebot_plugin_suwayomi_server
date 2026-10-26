@@ -410,10 +410,11 @@ class SuwayomiCore:
         valid_paths = [path for path in local_paths if path]
         if not valid_paths:
             return None, total_pages, 0, tmp_dir, None
-        if len(valid_paths) < len(page_urls):
-            logger.warning(
-                f"[{PLUGIN_NAME}] {len(page_urls) - len(valid_paths)} 页下载失败，"
-                f"将用已有页面打包 {fmt.upper()}"
+        if total_pages > len(page_urls) or len(valid_paths) < len(page_urls):
+            schedule_cleanup(tmp_dir, delay=60)
+            raise SuwayomiError(
+                f"整章共 {total_pages} 页，本次只取得 {len(valid_paths)} 页，未生成不完整文件。"
+                "请核对源站网络、账号权限和文件页数上限后重试，或选择其他漫画源。"
             )
 
         label = fmt_chapter_display(target)
@@ -1335,7 +1336,7 @@ class SuwayomiCore:
                 self.client, self.get_kv_data, self.put_kv_data, self.config, manga.id
             )
 
-            target, err_msg = resolve_chapter(chapters, chapter_num, manga_name_or_id, "下载")
+            target, err_msg = resolve_chapter(chapters, chapter_num, manga_name_or_id, "下载", format_hint=fmt)
             if err_msg:
                 await ctx.send(text_msg(err_msg))
                 return
@@ -1355,7 +1356,7 @@ class SuwayomiCore:
             concurrency = get_config_value(self.config, "download_concurrency", 6)
             custom_tmp = get_config_value(self.config, "temp_dir", "").strip()
             retries = get_config_value(self.config, "download_retries", 3)
-            _, page_urls, local_paths, tmp_dir = await fetch_pages_local(
+            total_pages, page_urls, local_paths, tmp_dir = await fetch_pages_local(
                 self.client, target.id, max_pages=get_file_delivery_max_pages(self.config),
                 concurrency=concurrency, custom_tmp=custom_tmp, retries=retries,
                 headers=self.client.auth_headers,
@@ -1370,8 +1371,12 @@ class SuwayomiCore:
                 await ctx.send(text_msg("所有页面下载失败，无法打包。"))
                 return
 
-            if len(valid_paths) < len(page_urls):
-                logger.warning(f"[{PLUGIN_NAME}] {len(page_urls) - len(valid_paths)} 页下载失败，将用已有页面打包")
+            if total_pages > len(page_urls) or len(valid_paths) < len(page_urls):
+                await ctx.send(text_msg(
+                    f"整章共 {total_pages} 页，本次只取得 {len(valid_paths)} 页，未生成不完整文件。"
+                    "请核对源站网络、账号权限和文件页数上限后重试，或选择其他漫画源。"
+                ))
+                return
 
             file_ext = normalize_pack_format(fmt)
             output_path = build_chapter_output_path(
